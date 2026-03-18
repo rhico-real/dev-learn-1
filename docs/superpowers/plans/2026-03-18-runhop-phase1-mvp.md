@@ -10,6 +10,76 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-18-runhop-system-architecture-design.md`
 
+**Audience:** Flutter/Dart developer learning TypeScript and NestJS for the first time. Each task includes concept explanations with Dart analogies where helpful.
+
+---
+
+## Key Concepts (Read Before Starting)
+
+This section maps NestJS/TypeScript concepts to things you already know from Flutter/Dart.
+
+### TypeScript vs Dart — Quick Translation
+
+| Dart | TypeScript | Notes |
+|------|-----------|-------|
+| `String`, `int`, `double` | `string`, `number` | TS primitives are lowercase |
+| `dynamic` | `any` | Both disable type checking — avoid in strict mode |
+| `late` | `!` (non-null assertion) | Both say "trust me, this exists" — use sparingly |
+| `required` params | No equivalent — all params required by default | Optional params use `?` in TS |
+| `class Foo extends Bar` | `class Foo extends Bar` | Same |
+| `abstract class` | `abstract class` or `interface` | TS interfaces are like Dart abstract classes with no implementation |
+| `enum Color { red, blue }` | `enum Color { RED = 'RED', BLUE = 'BLUE' }` | TS enums need explicit string values |
+| Dart annotations (`@override`) | TS decorators (`@Injectable()`) | Same syntax, but TS decorators are much more powerful — they modify class behavior at runtime |
+| `pubspec.yaml` | `package.json` | Dependency management |
+| `analysis_options.yaml` | `tsconfig.json` | Compiler/linter strictness |
+| `dart test` | `npx jest` | Test runner |
+
+### NestJS vs Flutter — Architecture Mapping
+
+| Flutter Concept | NestJS Equivalent | Explanation |
+|----------------|-------------------|-------------|
+| Widget tree | Module tree | NestJS organizes code into **Modules** that import each other, like Flutter's widget tree |
+| `Provider` / `Riverpod` | Dependency Injection (DI) | NestJS has built-in DI. You mark a class with `@Injectable()`, register it in a module, and NestJS creates + passes instances automatically. Like `Provider` but framework-level. |
+| `StatelessWidget` | `Controller` | Controllers handle HTTP requests (like a widget handles user interaction). They're thin — delegate logic to services. |
+| Business logic class | `Service` | Services contain business logic. They're `@Injectable()` and get injected into controllers. |
+| `Navigator` guards / `GoRouter` redirect | `Guard` | Guards decide if a request can proceed (authentication, authorization). Like route guards in GoRouter. |
+| `Middleware` in Dio | `Interceptor` | Interceptors wrap request/response — add headers, transform data, log. Like Dio interceptors. |
+| Data class / `freezed` model | `DTO` (Data Transfer Object) | DTOs define the shape of incoming data + validation rules. Like a Dart data class with validation. |
+| `build_runner` code generation | Prisma code generation | Prisma generates TypeScript types from your schema, like `build_runner` generates code from annotations. |
+
+### NestJS Module System — The Core Concept
+
+In Flutter, you organize code by features/folders. In NestJS, you organize into **Modules**:
+
+```typescript
+@Module({
+  imports: [OtherModule],     // modules this module depends on
+  controllers: [MyController], // HTTP endpoints
+  providers: [MyService],      // business logic (injectable services)
+  exports: [MyService],        // what other modules can use from this module
+})
+export class MyModule {}
+```
+
+Every module is a self-contained unit. If module A needs module B's service, A must `import` B, and B must `export` that service. This enforces boundaries — just like our spec's "boundary rule."
+
+### Decorators — NestJS's Superpower
+
+In Dart, annotations are metadata (`@override`, `@deprecated`). In NestJS, **decorators** actively change behavior:
+
+```typescript
+@Controller('users')     // This class handles routes starting with /users
+export class UserController {
+  @Get('me')             // This method handles GET /users/me
+  @UseGuards(AuthGuard)  // This endpoint requires authentication
+  getProfile(@CurrentUser() user) {  // Extract user from the JWT token
+    return user;
+  }
+}
+```
+
+You'll use decorators constantly. They're not scary — think of them as "annotations that do things."
+
 ---
 
 ## File Map
@@ -128,11 +198,22 @@
 
 **Goal:** Get a NestJS app running with `npm run start:dev` that returns "hello" on `GET /api/v1/health`. Postgres and Redis running in Docker.
 
+> **New concepts in this task:**
+> - **`package.json`** = your `pubspec.yaml`. Lists dependencies and scripts.
+> - **`tsconfig.json`** = your `analysis_options.yaml`. Controls TypeScript compiler strictness. Always use `"strict": true` — it's like enabling all the strict lints in Dart.
+> - **Docker Compose** = a file that defines services (databases, caches) your app needs. Like running `postgres` and `redis` locally without installing them on your machine. You define the config once, then `docker compose up -d` starts everything.
+> - **`main.ts`** = the entry point, like `main()` in Dart. It creates the NestJS app instance and configures global middleware.
+> - **`ValidationPipe`** = NestJS's way of validating incoming request data. Like form validation in Flutter, but server-side and automatic. `whitelist: true` strips unknown fields (security), `forbidNonWhitelisted: true` rejects them with an error.
+> - **`helmet()`** = adds security HTTP headers automatically. No config needed — just `app.use(helmet())`.
+> - **CORS** = browsers block requests to different domains by default. `enableCors()` tells the browser "this frontend origin is allowed to call my API." In Flutter/mobile, this doesn't exist — it's a web-only security feature.
+
 **Files:**
 - Create: `package.json`, `tsconfig.json`, `tsconfig.build.json`, `nest-cli.json`
 - Create: `.env.example`, `.env`, `.gitignore`, `.eslintrc.js`, `.prettierrc`
 - Create: `docker/docker-compose.yml`
 - Create: `src/main.ts`, `src/app.module.ts`
+
+**Important:** Only create files listed here. The File Map above shows ALL files across ALL tasks — do NOT create future task files now.
 
 **Steps:**
 
@@ -146,7 +227,11 @@ This generates the base NestJS project. We use `--strict` for strict TypeScript 
 
 The CLI creates a `runhop/` subdirectory. Move everything from `runhop/` into the project root. Delete the empty `runhop/` directory.
 
-- [ ] **Step 3: Install Phase 1 dependencies**
+- [ ] **Step 3: Verify `tsconfig.json` has strict mode**
+
+Open `tsconfig.json` and check for `"strict": true`. NestJS v11 may not generate this — if you see `"noImplicitAny": false` or `"strictBindCallApply": false`, replace them with `"strict": true`. This is critical — it catches type errors at compile time instead of runtime.
+
+- [ ] **Step 4: Install Phase 1 dependencies**
 
 ```bash
 npm install @nestjs/config @nestjs/passport passport passport-jwt @nestjs/throttler
@@ -154,15 +239,48 @@ npm install @prisma/client ioredis class-validator class-transformer helmet uuid
 npm install -D prisma @types/passport-jwt @types/uuid
 ```
 
-- [ ] **Step 4: Create Docker Compose file**
+What each package does:
+- `@nestjs/config` — loads `.env` files (like `flutter_dotenv`)
+- `@nestjs/passport` + `passport` + `passport-jwt` — JWT authentication
+- `@nestjs/throttler` — rate limiting (prevents brute-force attacks)
+- `@prisma/client` + `prisma` — ORM for database access (like Dart's `drift` or `sqflite` but much more powerful)
+- `ioredis` — Redis client (Redis = super-fast in-memory database, used for caching + token storage)
+- `class-validator` + `class-transformer` — DTO validation decorators
+- `helmet` — security headers
+- `uuid` — generates unique IDs
+- `@types/*` — TypeScript type definitions (dev only, like Dart's dev_dependencies)
+
+- [ ] **Step 5: Clean up scaffold files**
+
+Delete the NestJS demo files — you won't need them:
+- Delete `src/app.controller.ts`
+- Delete `src/app.service.ts`
+- Delete `src/app.controller.spec.ts`
+
+Update `src/app.module.ts` to be an empty root module:
+```typescript
+import { Module } from '@nestjs/common';
+
+@Module({
+  imports: [],
+})
+export class AppModule {}
+```
+
+- [ ] **Step 6: Create Docker Compose file**
 
 Create `docker/docker-compose.yml` with:
 - `postgres:16-alpine` on port 5432 (user: `runhop`, password: `runhop`, db: `runhop`)
 - `redis:7-alpine` on port 6379
-- Named volume `pgdata` for Postgres persistence
+- Named volume for Postgres data persistence
 
-- [ ] **Step 5: Create `.env.example` and `.env`**
+**Important volume paths** (these are where the containers store data internally — get them wrong and your data won't persist):
+- Postgres: `pgdata:/var/lib/postgresql/data`
+- Redis: `redis_data:/data`
 
+- [ ] **Step 7: Create `.env.example` and `.env`**
+
+`.env.example` (committed to git — template for other developers):
 ```env
 # Database
 DATABASE_URL=postgresql://runhop:runhop@localhost:5432/runhop
@@ -185,24 +303,37 @@ API_PREFIX=api/v1
 CORS_ORIGIN=http://localhost:3000
 ```
 
-- [ ] **Step 6: Update `.gitignore`**
+`.env` (gitignored — your local secrets):
+- Copy from `.env.example`
+- Generate a real JWT secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- Paste the random output as `JWT_SECRET=<random_hex>`
 
-Add `.env` (but NOT `.env.example`) and `node_modules/` and `dist/`.
+- [ ] **Step 8: Update `.gitignore`**
 
-- [ ] **Step 7: Update `main.ts` with global prefix**
+Ensure `.env` is listed (but NOT `.env.example`), plus `node_modules/`, `dist/`, `.DS_Store`.
 
-Set global prefix to `api/v1`. Add `ValidationPipe` globally with `whitelist: true` and `forbidNonWhitelisted: true`. Add `helmet()`. Enable CORS with origin from env.
+- [ ] **Step 9: Update `main.ts`**
 
-- [ ] **Step 8: Start Docker and verify the app boots**
+Your `main.ts` should do these things (in order):
+1. Create the NestJS app: `NestFactory.create(AppModule)`
+2. Set global API prefix: `app.setGlobalPrefix('api/v1')`
+3. Add security headers: `app.use(helmet())`
+4. Add validation pipe: `app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))`
+5. Enable CORS: `app.enableCors({ origin: process.env.CORS_ORIGIN })`
+6. Start listening: `app.listen(process.env.PORT ?? 3000)`
+
+- [ ] **Step 10: Start Docker and verify the app boots**
 
 ```bash
 cd docker && docker compose up -d && cd ..
 npm run start:dev
 ```
 
-Visit `http://localhost:3000/api/v1` — should see NestJS default response.
+Check Docker is running: `docker ps` — should show `postgres_db` and `redis_cache`.
+Check app is running: visit `http://localhost:3000/api/v1` in browser or `curl http://localhost:3000/api/v1`.
+Expected: 404 (no routes defined yet — that's correct, we removed the demo controller).
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add -A
@@ -212,6 +343,13 @@ git commit -m "chore: scaffold NestJS project with Docker (Postgres + Redis)"
 ---
 
 ## Task 2: Prisma Schema & Infrastructure Layer
+
+> **New concepts in this task:**
+> - **Prisma** = an ORM (Object-Relational Mapper). You define your database tables in a `schema.prisma` file using a simple syntax, and Prisma generates TypeScript types + a client to query the database. Like `drift` in Dart, but the schema is its own DSL (not Dart code).
+> - **Migrations** = versioned database changes. When you modify `schema.prisma`, you run `prisma migrate dev` and it generates SQL to update your database. Like `sqflite` migrations but automatic.
+> - **`@Global()` module** = a NestJS module available everywhere without importing it. Like a top-level `Provider` in Flutter that every widget can access. Use sparingly — only for truly global services like database and cache.
+> - **`OnModuleInit` / `OnModuleDestroy`** = lifecycle hooks. Like `initState()` and `dispose()` in Flutter StatefulWidget. Used to connect/disconnect from databases.
+> - **Env validation** = checking that all required environment variables exist when the app starts. If `JWT_SECRET` is missing, the app crashes immediately with a clear error instead of failing mysteriously later.
 
 **Goal:** Define all Phase 1 database models, run migrations, set up PrismaService and RedisService as global modules, and validate env config at boot.
 
@@ -330,6 +468,15 @@ git commit -m "feat: add Prisma schema, infrastructure layer (database, redis, c
 ---
 
 ## Task 3: Shared Kernel (Guards, Decorators, Filters, Interceptors)
+
+> **New concepts in this task:**
+> - **Guard** = decides if a request can proceed. Like `GoRouter`'s `redirect` — if the user isn't authenticated, the guard blocks the request and returns 401. NestJS runs guards BEFORE the controller method executes.
+> - **Interceptor** = wraps around the request/response. Like `Dio` interceptors in Flutter. Runs BEFORE the controller (can modify request) and AFTER (can modify response). We use it to wrap all responses in `{ data: ... }`.
+> - **Exception Filter** = catches errors and formats them consistently. Like a global `try/catch` that ensures every error response has the same shape (`{ statusCode, message, error }`). In Flutter, this is like a global error handler.
+> - **Custom Decorator** = a reusable annotation you create. `@CurrentUser()` extracts the logged-in user from the request — so instead of writing `request.user.sub` in every controller method, you just add `@CurrentUser() user` as a parameter.
+> - **`SetMetadata()`** = attaches data to a route that guards/interceptors can read. `@Public()` sets `isPublic: true` on a route, and the `JwtAuthGuard` reads it to skip authentication.
+> - **DTO (Data Transfer Object)** = a class that defines what data a request should contain + validation rules. Like a Dart data class with `@JsonSerializable()`, but with validation decorators (`@IsEmail()`, `@MinLength(8)`). NestJS automatically validates incoming requests against the DTO.
+> - **`APP_GUARD`** = a guard applied to EVERY route globally. Instead of adding `@UseGuards(AuthGuard)` to every controller, you register it once as a global guard. Routes marked `@Public()` opt out.
 
 **Goal:** Build the shared toolbox that every domain module uses — JWT auth guard, roles guard, decorators, exception filter, response transform interceptor, shared enums, and pagination DTO.
 
@@ -492,6 +639,13 @@ git commit -m "feat: add shared kernel (guards, decorators, filters, interceptor
 
 ## Task 4: Identity Context — User Module
 
+> **New concepts in this task:**
+> - **TDD (Test-Driven Development)** = write the test FIRST, watch it fail, THEN write the code to make it pass. Like writing a `testWidgets()` test before building the widget. Feels weird at first, but it forces you to think about what the code should DO before writing it.
+> - **Jest** = the test framework (like `flutter_test`). `describe()` groups tests, `it()` defines a test, `expect()` asserts. Same concept as Dart's `group()`, `test()`, and `expect()`.
+> - **Mocking** = creating fake versions of dependencies for testing. If `UserService` depends on `PrismaService`, the unit test uses a fake Prisma that returns pre-defined data. Like `mockito` in Dart. In Jest, you use `jest.fn()` to create mock functions.
+> - **`@Injectable()`** = marks a class for NestJS's dependency injection. Like registering a class with `Provider` in Flutter — NestJS creates the instance and passes it wherever it's needed.
+> - **bcrypt** = a password hashing algorithm. NEVER store passwords as plain text. `bcrypt.hash(password, 12)` creates a one-way hash. `bcrypt.compare(input, hash)` checks if a password matches without knowing the original.
+
 **Goal:** Create the User module with `UserService` (CRUD + exists check) and `UserController` (GET/PATCH profile endpoints). No auth yet — we build the user layer first so auth can depend on it.
 
 **Files:**
@@ -573,6 +727,13 @@ git commit -m "feat: add User module (service, controller, DTO, tests)"
 ---
 
 ## Task 5: Identity Context — Auth Module
+
+> **New concepts in this task:**
+> - **JWT (JSON Web Token)** = a signed string that proves who you are. When you login, the server creates a JWT containing your userId and role, signs it with a secret key, and gives it to the client. On every subsequent request, the client sends the JWT in the `Authorization` header. The server verifies the signature — if valid, it trusts the token's contents without hitting the database. Like Firebase Auth tokens in Flutter.
+> - **Access Token vs Refresh Token** = Access tokens are short-lived (15 minutes) for security. When they expire, instead of making the user login again, the client sends a refresh token (long-lived, 7 days) to get a new access token. Like how Firebase auto-refreshes tokens.
+> - **Passport Strategy** = NestJS uses "strategies" to handle authentication. A JWT strategy extracts the token from the `Authorization: Bearer <token>` header, verifies it, and attaches the user data to the request. You define the strategy once, and guards use it automatically.
+> - **Token Blacklisting** = when a user logs out, their access token is still technically valid until it expires. To invalidate it immediately, we store the token's ID (`jti`) in Redis with a short TTL. The JWT strategy checks Redis before accepting any token. Like revoking a Firebase token.
+> - **`ConflictException` / `UnauthorizedException`** = NestJS has built-in HTTP exception classes. `throw new ConflictException('Email already exists')` automatically returns a 409 HTTP response. Like throwing custom exceptions in Dart, but mapped to HTTP status codes.
 
 **Goal:** Full auth flow: register, login (returns JWT + refresh token), refresh, logout (token blacklisting). JWT strategy wired up. This unblocks every other module.
 
@@ -739,6 +900,12 @@ git commit -m "feat: add Auth module (register, login, refresh, logout, JWT stra
 
 ## Task 6: Organization Context — Organization Module
 
+> **New concepts in this task:**
+> - **Prisma Transactions** = `prisma.$transaction()` runs multiple database operations atomically — either ALL succeed or ALL rollback. When creating an org, we also create the OWNER membership. If either fails, neither is saved. Like database transactions in any SQL database — you may not have used these directly in Flutter.
+> - **Slug** = a URL-friendly version of a name. "Manila Runners Club" becomes `manila-runners-club`. Used in URLs instead of IDs: `/organizations/manila-runners-club` is more readable than `/organizations/550e8400-e29b-41d4...`.
+> - **Soft Delete** = instead of actually deleting a record (`DELETE FROM`), you set `deletedAt = now()`. The record still exists but is filtered out of queries. This preserves data integrity — if an org is deleted, the events and memberships that reference it don't break.
+> - **Cross-context permission check** = `EventService` needs to verify "is this user an admin of this org?" It calls `OrgMembershipService.verifyRole()` — it does NOT query the OrgMembership table directly. This is the boundary rule in action.
+
 **Goal:** CRUD for organizations. Only authenticated users can create orgs (creator auto-becomes OWNER). Update/delete requires org-level permissions (checked in service layer via OrgMembershipService, which we build in the next task — for now, stub the permission check or build org + membership together).
 
 **Note:** Organization and OrgMembership are tightly coupled (creating an org also creates the OWNER membership). Build both in this task.
@@ -885,6 +1052,10 @@ git commit -m "feat: add Organization context (org CRUD, membership, permissions
 
 ## Task 7: Event Context — Event Module
 
+> **New concepts in this task:**
+> - **State Machine** = a pattern where an entity can only be in certain states and can only transition between specific states. Like a Flutter `AnimationController` that can only go `forward()` or `reverse()` — you can't jump to a random position. Event status (`DRAFT → PUBLISHED → CLOSED → COMPLETED`) follows strict rules. Invalid transitions throw errors.
+> - **`BadRequestException`** = NestJS's 400 error. Thrown when the client sends a valid request but the business logic rejects it (e.g., trying to publish a COMPLETED event). Different from `UnauthorizedException` (401, not logged in) or `ForbiddenException` (403, logged in but not allowed).
+
 **Goal:** Event CRUD with status state machine. Events belong to organizations. Only org admins can create/manage events. Status transitions enforced in the service layer.
 
 **Files:**
@@ -992,6 +1163,10 @@ git commit -m "feat: add Event module (CRUD, status state machine, permissions, 
 
 ## Task 8: Event Context — Race Module
 
+> **New concepts in this task:**
+> - **Price as integer cents** = never store money as `float` or `double` — floating point math causes rounding errors (`0.1 + 0.2 = 0.30000000000000004`). Store PHP 500.00 as `50000` (integer cents). The frontend divides by 100 for display. This is how Stripe, PayPal, and every serious payment system works.
+> - **Capacity check** = before allowing registration, count confirmed registrations and compare to `maxParticipants`. This is a read-then-write pattern that can have race conditions under high load (two people register at the same time when only 1 slot is left). For Phase 1, a simple count is fine. Phase 4 could use database locks.
+
 **Goal:** Race CRUD within events. Races can only be created/modified on DRAFT events. Price stored as integer cents.
 
 **Files:**
@@ -1066,6 +1241,10 @@ git commit -m "feat: add Race module (CRUD, draft-only mutations, capacity check
 ---
 
 ## Task 9: Event Context — Registration Module
+
+> **New concepts in this task:**
+> - **Unique constraint as business rule** = the database has a unique constraint on `(userId, raceId)`. If a user tries to register twice, Prisma throws a unique constraint error. We catch this and throw a `ConflictException` (409). The database enforces the rule even if our code has a bug — defense in depth.
+> - **URL params vs body** = in `POST /races/:raceId/registrations`, the `raceId` comes from the URL (`@Param('raceId')`), not the request body. The userId comes from the JWT (`@CurrentUser()`). The request body is empty. This is RESTful design — the URL identifies the resource, the JWT identifies the actor.
 
 **Goal:** Users register for races. Enforces: event must be PUBLISHED, race must have capacity, user can't double-register. Registration status: PENDING → CONFIRMED → CANCELLED.
 
@@ -1147,6 +1326,10 @@ git commit -m "feat: add Registration module (register, cancel, capacity check, 
 ---
 
 ## Task 10: Social Context — Follow Module
+
+> **New concepts in this task:**
+> - **Polymorphic relation** = one table that can point to different entity types. The `Follow` table has `targetId` + `targetType` instead of separate `followedUserId`, `followedOrgId`, `followedEventId` columns. Trade-off: simpler code, but the database can't enforce foreign keys on `targetId` (since it could be a user, org, or event ID). We validate at the application layer instead.
+> - **Cross-context dependency** = Follow module needs to verify that the target exists. It calls `UserService.exists()`, `OrganizationService.exists()`, or `EventService.exists()` based on `targetType`. This is why the Follow module imports all three context barrel modules — it's the only module in Phase 1 that depends on everything.
 
 **Goal:** Polymorphic follow system. Users follow users, orgs, or events. Validates target existence via cross-context service calls.
 
