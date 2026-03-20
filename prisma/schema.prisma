@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum SystemRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum OrgRole{
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  COMPLETED
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum TargetType {
+  USER
+  ORGANIZATION
+  EVENT
+}
+
+model User {
+  id  String @id @default(uuid())
+  email String @unique
+  password String
+  displayName String
+  avatar String?
+  bio String?
+  role SystemRole @default(USER)
+  deletedAt DateTime?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  memberships OrgMembership[]
+  registrations Registration[]
+  follows Follow[]
+}
+
+model Organization {
+  id String @id @default(uuid())
+  name String
+  slug String @unique
+  description String?
+  logo String?
+  banner String?
+  deletedAt DateTime?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  memberships OrgMembership[]
+  events Event[]
+}
+
+model OrgMembership {
+  id String @id @default(uuid())
+  
+  user User @relation(fields:[userId], references: [id], onDelete: Cascade)
+  userId String
+  
+  org Organization @relation(fields:[orgId], references: [id], onDelete: Cascade)
+  orgId String
+  
+  role OrgRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+  @@unique([userId, orgId])
+
+  @@index([userId])
+  @@index([orgId, role])
+}
+
+model Event {
+  id String @id @default(uuid())
+  
+  org Organization @relation(fields:[orgId], references: [id])
+  orgId String
+
+  name String
+  slug String @unique
+  description String?
+  location String?
+  bannerImage String?
+  startDate DateTime
+  endDate DateTime
+  status EventStatus @default(DRAFT)
+
+  races Race[]
+
+  @@index([orgId, status])
+  @@index([status, startDate])
+}
+
+model Race {
+  id String @id @default(uuid())
+  
+  event Event @relation(fields:[eventId], references: [id])
+  eventId String
+
+  name String
+  distance Float
+
+  unit String
+  maxParticipants Int
+  price Int
+  currency String @default("PHP")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  registrations Registration[]
+
+  @@index([eventId])
+}
+
+model Registration {
+  id String @id @default(uuid())
+  
+  user User @relation(fields:[userId], references: [id])
+  userId String
+
+  race Race @relation(fields: [raceId], references: [id])
+  raceId String
+
+  status RegistrationStatus @default(PENDING)
+
+  registeredAt DateTime @default(now())
+
+  @@unique([userId, raceId])
+
+  @@index([raceId, status])
+  @@index([userId])
+}
+
+model Follow {
+  id String @id @default(uuid())
+  
+  follower User @relation(fields: [followerId], references: [id])
+  followerId String
+
+  targetId String
+
+  targetType TargetType
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, targetId, targetType])
+
+  @@index([targetType, targetId])
+}
