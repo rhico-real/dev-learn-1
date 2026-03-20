@@ -1,0 +1,35 @@
+import { Global, Module } from "@nestjs/common";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { RolesGuard } from "./guards/roles.guard";
+import { HttpExceptionFilter } from "./filters/http-exception.filter";
+import { TransformInterceptor } from "./interceptors/transform.interceptor";
+import { LoggingInterceptor } from "./interceptors/logging.interceptor";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+
+@Global()
+@Module({
+    providers:[
+        {
+            provide: APP_GUARD,
+            useClass: JwtAuthGuard
+        },
+        {
+            provide: APP_GUARD,
+            useClass: RolesGuard
+        },
+        {
+            provide: APP_FILTER,
+            useClass: HttpExceptionFilter
+        },
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: LoggingInterceptor
+        },
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: TransformInterceptor
+        }
+    ]
+
+})
+export class SharedModule{}

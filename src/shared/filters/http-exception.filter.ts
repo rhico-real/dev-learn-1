@@ -21,7 +21,7 @@ export class HttpExceptionFilter implements ExceptionFilter{
             path: request.url
         };
 
-        if(process.env.NODE_ENV === 'production'){
+        if(process.env.NODE_ENV !== 'production'){
             (errorResponse as any).stack = exception.stack;
         }
 
