@@ -12,6 +12,8 @@
 
 **Audience:** Flutter/Dart developer learning TypeScript and NestJS for the first time. Each task includes concept explanations with Dart analogies where helpful.
 
+**Learning approach:** Tasks 1-3 followed TDD. Starting from Task 4, we switched to **implementation-first**: build the code first (so you understand what it does), then write tests. This is because TDD requires understanding the framework patterns — testing something you can't picture yet is counterproductive. Once you've built one full service + test cycle, future tasks can use TDD.
+
 ---
 
 ## Key Concepts (Read Before Starting)
@@ -639,12 +641,14 @@ git commit -m "feat: add shared kernel (guards, decorators, filters, interceptor
 
 ## Task 4: Identity Context — User Module
 
+> **Approach change:** For your first NestJS service, we build the implementation first so you understand what it does, THEN write tests. Once you've built one service + test, future tasks will follow TDD.
+
 > **New concepts in this task:**
-> - **TDD (Test-Driven Development)** = write the test FIRST, watch it fail, THEN write the code to make it pass. Like writing a `testWidgets()` test before building the widget. Feels weird at first, but it forces you to think about what the code should DO before writing it.
-> - **Jest** = the test framework (like `flutter_test`). `describe()` groups tests, `it()` defines a test, `expect()` asserts. Same concept as Dart's `group()`, `test()`, and `expect()`.
-> - **Mocking** = creating fake versions of dependencies for testing. If `UserService` depends on `PrismaService`, the unit test uses a fake Prisma that returns pre-defined data. Like `mockito` in Dart. In Jest, you use `jest.fn()` to create mock functions.
 > - **`@Injectable()`** = marks a class for NestJS's dependency injection. Like registering a class with `Provider` in Flutter — NestJS creates the instance and passes it wherever it's needed.
 > - **bcrypt** = a password hashing algorithm. NEVER store passwords as plain text. `bcrypt.hash(password, 12)` creates a one-way hash. `bcrypt.compare(input, hash)` checks if a password matches without knowing the original.
+> - **Destructuring** = TypeScript syntax to pull apart objects: `const { password, ...rest } = user` puts `password` in one variable and everything else in `rest`. Used to strip the password field before returning.
+> - **Jest** = the test framework (like `flutter_test`). `describe()` = `group()`, `it()` = `test()`, `expect()` = `expect()`. Same concepts, different names.
+> - **Mocking** = creating fake versions of dependencies. `jest.fn()` creates a fake function you control. `mockResolvedValue(x)` = "when called, return a Promise that resolves to x."
 
 **Goal:** Create the User module with `UserService` (CRUD + exists check) and `UserController` (GET/PATCH profile endpoints). No auth yet — we build the user layer first so auth can depend on it.
 
@@ -657,67 +661,271 @@ git commit -m "feat: add shared kernel (guards, decorators, filters, interceptor
 
 **Steps:**
 
-- [ ] **Step 1: Write `UserService` unit test (failing)**
+- [ ] **Step 1: Install bcrypt**
 
-Create `src/domain/identity/user/user.service.spec.ts`:
-- Mock `PrismaService`
-- Test: `create()` — creates a user with hashed password, returns user without password
-- Test: `findByEmail()` — returns user or null
-- Test: `findById()` — returns user without password, throws `NotFoundException` if not found
-- Test: `exists()` — returns boolean
-- Test: `update()` — updates user fields, returns updated user without password
-- Test: soft-deleted users are excluded from `findById` (where `deletedAt: null`)
+```bash
+npm install bcrypt
+npm install -D @types/bcrypt
+```
 
-Run: `npx jest src/domain/identity/user/user.service.spec.ts`
-Expected: FAIL (service doesn't exist yet)
+- [ ] **Step 2: Create `UserService`**
 
-- [ ] **Step 2: Implement `UserService`**
+Create `src/domain/identity/user/user.service.ts`.
 
-Create `src/domain/identity/user/user.service.ts`:
-- Inject `PrismaService`
-- `create(data: { email, password, displayName })` — hash password with bcrypt (cost 12), create user, return without password field
-- `findByEmail(email: string)` — find user where deletedAt is null (includes password — used by auth only)
-- `findById(id: string)` — find user where deletedAt is null, exclude password. Throw `NotFoundException` if not found.
-- `exists(id: string)` — returns boolean, used by social context for follow validation
-- `update(id: string, data: UpdateUserDto)` — partial update, return without password
-- Private helper `excludePassword(user)` to strip password from return values
+This is the **Flutter equivalent of a Repository class** — it talks to the database and contains business logic. Here's the pattern with Dart comparison:
 
-Install bcrypt: `npm install bcrypt && npm install -D @types/bcrypt`
+```
+Flutter:                              NestJS:
+class UserRepo {                      @Injectable()
+  final Database db;                  export class UserService {
+  UserRepo(this.db);                    constructor(private prisma: PrismaService) {}
+  Future<User?> getById(id) {...}       async findById(id: string) {...}
+}                                     }
+```
 
-Run: `npx jest src/domain/identity/user/user.service.spec.ts`
-Expected: PASS
+Your service needs these methods:
+
+**`create(data)`** — Creates a user with hashed password
+- Hash the password: `await bcrypt.hash(data.password, 12)`
+- Insert into database: `this.prisma.user.create({ data: { ... } })`
+- Strip password before returning (use `excludePassword` helper)
+
+**`findByEmail(email)`** — Find user by email (includes password — only auth uses this for login)
+- `this.prisma.user.findUnique({ where: { email, deletedAt: null } })`
+- Returns null if not found (no exception)
+
+**`findById(id)`** — Find user by ID (WITHOUT password)
+- `this.prisma.user.findUnique({ where: { id, deletedAt: null } })`
+- If null, `throw new NotFoundException('User not found')`
+- Strip password before returning
+
+**`exists(id)`** — Returns boolean (used by Social context for follow validation)
+- `this.prisma.user.findUnique({ where: { id, deletedAt: null }, select: { id: true } })`
+- `select: { id: true }` = only fetch the id column, not the whole row (faster)
+- Return `!!user` (double negation converts null→false, object→true)
+
+**`update(id, data)`** — Update user profile
+- `this.prisma.user.update({ where: { id }, data })`
+- Strip password before returning
+
+**`excludePassword(user)` (private helper)** — Strips password from any user object
+```typescript
+private excludePassword(user: any) {
+  const { password, ...userWithoutPassword } = user;
+  return userWithoutPassword;
+}
+```
+
+Import these at the top:
+```typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import * as bcrypt from 'bcrypt';
+```
 
 - [ ] **Step 3: Create `UpdateUserDto`**
 
-Create `src/domain/identity/user/dto/update-user.dto.ts`:
-- `displayName` — optional, `@IsString()`, `@MinLength(2)`, `@MaxLength(50)`
-- `bio` — optional, `@IsString()`, `@MaxLength(500)`
-- `avatar` — optional, `@IsUrl()`
+Create `src/domain/identity/user/dto/update-user.dto.ts`.
+
+A DTO is like a Dart data class with validation. This one defines what fields can be updated on a user profile:
+
+```typescript
+import { IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
+
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  displayName?: string;    // ? means optional
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
+
+  @IsOptional()
+  @IsUrl()
+  avatar?: string;
+}
+```
+
+NestJS will automatically validate incoming requests against this class. If someone sends `{ displayName: "" }` (too short), they get a 400 error. You don't write any validation logic — the decorators do it.
 
 - [ ] **Step 4: Create `UserController`**
 
-Create `src/domain/identity/user/user.controller.ts`:
-- `GET /users/me` — `@CurrentUser()` to get userId, call `userService.findById()`
-- `PATCH /users/me` — `@CurrentUser()` + `@Body() UpdateUserDto`, call `userService.update()`
-- `GET /users/:id` — call `userService.findById(id)`
-- All endpoints require auth (default, since JwtAuthGuard is global)
+Create `src/domain/identity/user/user.controller.ts`.
+
+A controller is a **thin layer** — it receives HTTP requests and delegates to the service. Like a Flutter screen that delegates to a BLoC:
+
+```
+Flutter:                                   NestJS:
+class UserScreen extends StatelessWidget { @Controller('users')
+  Widget build(context) {                  export class UserController {
+    final user = ref.read(userProvider);     constructor(private userService: UserService) {}
+    return Text(user.name);
+  }                                          @Get('me')
+}                                            getMe(@CurrentUser() user) {
+                                               return this.userService.findById(user.userId);
+                                             }
+                                           }
+```
+
+Your controller needs these endpoints:
+
+**`GET /users/me`** — Get current user's profile
+- Use `@CurrentUser()` decorator to get `{ userId, role }` from JWT
+- Call `this.userService.findById(user.userId)`
+
+**`PATCH /users/me`** — Update current user's profile
+- Use `@CurrentUser()` for userId
+- Use `@Body()` with `UpdateUserDto` for validated input
+- Call `this.userService.update(user.userId, dto)`
+
+**`GET /users/:id`** — View any user's public profile
+- Use `@Param('id')` to get the ID from the URL
+- Call `this.userService.findById(id)`
+
+Decorators you'll use:
+```typescript
+import { Controller, Get, Patch, Param, Body } from '@nestjs/common';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../../shared/types/interfaces';
+```
 
 - [ ] **Step 5: Create `UserModule`**
 
-Create `src/domain/identity/user/user.module.ts`:
-- Provides `UserService`
-- Exports `UserService` (other contexts need it)
-- Registers `UserController`
+Create `src/domain/identity/user/user.module.ts`.
 
-- [ ] **Step 6: Run tests**
+This wires the service and controller together:
 
-```bash
-npx jest src/domain/identity/user/
+```typescript
+@Module({
+  controllers: [UserController],
+  providers: [UserService],
+  exports: [UserService],  // other contexts (Auth, Social) need UserService
+})
+export class UserModule {}
 ```
 
-Expected: All unit tests pass.
+`exports: [UserService]` is important — without it, other modules can't use `UserService`. It's like making a provider accessible outside its scope.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Verify it compiles**
+
+```bash
+npm run start:dev
+```
+
+Expected: compiles with 0 errors. Endpoints won't work yet (JWT guard blocks everything, auth isn't built yet) but the module should initialize.
+
+- [ ] **Step 7: Write `UserService` unit tests**
+
+NOW write the tests — you understand what each method does because you just built it.
+
+Create `src/domain/identity/user/user.service.spec.ts`.
+
+Here's the testing pattern for NestJS (this is the skeleton — fill in each test):
+
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { UserService } from './user.service';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { NotFoundException } from '@nestjs/common';
+
+describe('UserService', () => {
+  let service: UserService;
+
+  // Fake user data to reuse in tests
+  const mockUser = {
+    id: '123',
+    email: 'test@test.com',
+    password: '$2b$12$fakehash',
+    displayName: 'Test User',
+    avatar: null,
+    bio: null,
+    role: 'USER',
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // Fake PrismaService — fake every Prisma method your service calls
+  const mockPrisma = {
+    user: {
+      create: jest.fn(),       // jest.fn() = fake function you control
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    // NestJS testing module — wires up DI with your fakes instead of real services
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+    jest.clearAllMocks();  // reset fakes between tests
+  });
+
+  describe('findById', () => {
+    it('should return user without password', async () => {
+      // 1. ARRANGE: tell the fake what to return
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+
+      // 2. ACT: call the real service method
+      const result = await service.findById('123');
+
+      // 3. ASSERT: check the result
+      expect(result).not.toHaveProperty('password');
+      expect(result.email).toBe('test@test.com');
+    });
+
+    it('should throw NotFoundException if user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.findById('999')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // NOW YOU WRITE THESE:
+
+  describe('findByEmail', () => {
+    // Test: returns user (WITH password) when found
+    // Test: returns null when not found
+  });
+
+  describe('exists', () => {
+    // Test: returns true when user exists
+    // Test: returns false when user doesn't exist
+  });
+
+  describe('create', () => {
+    // Test: calls prisma.user.create, returns user WITHOUT password
+    // Hint: mockPrisma.user.create.mockResolvedValue(mockUser)
+    // Hint: check that result doesn't have 'password' property
+  });
+
+  describe('update', () => {
+    // Test: calls prisma.user.update with correct args, returns user WITHOUT password
+  });
+});
+```
+
+Key testing concepts:
+- **`jest.fn()`** = creates a fake function (like Dart's `MockFunction`)
+- **`.mockResolvedValue(x)`** = "when called, return Promise that resolves to x"
+- **`expect(x).rejects.toThrow(Y)`** = "this async function should throw error Y"
+- **`expect(x).not.toHaveProperty('password')`** = "result should NOT have password field"
+- **`jest.clearAllMocks()`** = reset all fakes between tests (prevent test pollution)
+
+Run: `npx jest src/domain/identity/user/`
+Expected: ALL PASS
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add -A
