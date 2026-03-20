@@ -959,103 +959,380 @@ git commit -m "feat: add User module (service, controller, DTO, tests)"
 
 **Steps:**
 
-- [ ] **Step 1: Write `AuthService` unit test (failing)**
+- [ ] **Step 1: Install dependencies**
 
-Create `src/domain/identity/auth/auth.service.spec.ts`:
-- Mock `UserService`, `JwtService`, `RedisService`, `ConfigService`
-- Test: `register()` — calls `userService.create()`, generates tokens, stores refresh token in Redis
-- Test: `register()` — throws `ConflictException` if email already exists
-- Test: `login()` — validates password with bcrypt, returns tokens
-- Test: `login()` — throws `UnauthorizedException` for wrong password
-- Test: `login()` — throws `UnauthorizedException` for non-existent email
-- Test: `refresh()` — validates refresh token from Redis, issues new token pair, rotates refresh token
-- Test: `refresh()` — throws `UnauthorizedException` for invalid/expired refresh token
-- Test: `logout()` — blacklists access token jti in Redis, deletes refresh token
+```bash
+npm install @nestjs/jwt @nestjs/passport passport passport-jwt uuid
+npm install -D @types/passport-jwt @types/uuid
+```
 
-Run: `npx jest src/domain/identity/auth/auth.service.spec.ts`
-Expected: FAIL
+`@nestjs/jwt` gives you `JwtService` for signing/verifying tokens. `@nestjs/passport` integrates the Passport authentication library. `uuid` generates unique IDs for token tracking. You already have `bcrypt` from Task 4.
 
 - [ ] **Step 2: Create auth DTOs**
 
-`register.dto.ts`:
-- `email` — `@IsEmail()`
-- `password` — `@IsString()`, `@MinLength(8)`, `@MaxLength(72)` (bcrypt limit)
-- `displayName` — `@IsString()`, `@MinLength(2)`, `@MaxLength(50)`
+Same DTO pattern as Task 4's `UpdateUserDto` — classes with validation decorators.
 
-`login.dto.ts`:
-- `email` — `@IsEmail()`
-- `password` — `@IsString()`
+Create `src/domain/identity/auth/dto/register.dto.ts`:
+```typescript
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
-`refresh-token.dto.ts`:
-- `refreshToken` — `@IsString()`, `@IsUUID()`
+export class RegisterDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)   // bcrypt has a 72-byte input limit
+  password: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  displayName: string;
+}
+```
+
+Create `src/domain/identity/auth/dto/login.dto.ts`:
+```typescript
+import { IsEmail, IsString } from 'class-validator';
+
+export class LoginDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  password: string;
+}
+```
+
+Create `src/domain/identity/auth/dto/refresh-token.dto.ts`:
+```typescript
+import { IsString } from 'class-validator';
+
+export class RefreshTokenDto {
+  @IsString()
+  refreshToken: string;
+}
+```
 
 - [ ] **Step 3: Implement `AuthService`**
 
-Create `src/domain/identity/auth/auth.service.ts`:
-- Inject `UserService`, `JwtService`, `RedisService`, `ConfigService`
-- `register(dto)`:
-  - Check if email exists via `userService.findByEmail()`. If yes, throw `ConflictException`.
-  - Create user via `userService.create()`
-  - Generate access token (JWT with `{ sub: userId, role, jti: uuid() }`) and refresh token (uuid)
-  - Store refresh token in Redis: key `auth:refresh:<userId>:<tokenId>`, TTL 7 days
-  - Return `{ accessToken, refreshToken, user }`
-- `login(dto)`:
-  - Find user by email. If not found, throw `UnauthorizedException`.
-  - Compare password with bcrypt. If wrong, throw `UnauthorizedException`.
-  - Generate tokens (same as register)
-  - Return `{ accessToken, refreshToken, user }`
-- `refresh(dto)`:
-  - The refresh token encodes the lookup info: store refresh tokens at key `auth:refresh:<userId>:<tokenId>` and return `<userId>:<tokenId>` as the refresh token to the client (or base64 encode it). On refresh, decode the token to get userId + tokenId, look up the exact Redis key. **Never use KEYS or SCAN** — this is an O(N) operation that doesn't scale.
-  - Validate the stored token matches
-  - Delete old refresh token, generate new token pair (rotation)
-  - Store new refresh token in Redis
-  - Return `{ accessToken, refreshToken }`
-- `logout(jti, userId)`:
-  - Set `auth:blacklist:<jti>` in Redis with TTL = remaining access token life
-  - Delete all refresh tokens for this user (or just the current session)
+Create `src/domain/identity/auth/auth.service.ts`.
 
-Run: `npx jest src/domain/identity/auth/auth.service.spec.ts`
-Expected: PASS
+This service has **four dependencies** injected through the constructor. Here's what each one does and the Dart comparison:
+
+```
+Flutter:                                    NestJS:
+class AuthRepo {                            @Injectable()
+  final UserRepo userRepo;                  export class AuthService {
+  final FirebaseAuth auth;                    constructor(
+  final SharedPrefs prefs;                      private userService: UserService,
+  final RemoteConfig config;                    private jwtService: JwtService,
+                                                private redisService: RedisService,
+  AuthRepo(this.userRepo, this.auth,            private configService: ConfigService,
+           this.prefs, this.config);          ) {}
+}                                           }
+```
+
+- **`UserService`** — the service you built in Task 4. Used to create users and look them up by email.
+- **`JwtService`** — from `@nestjs/jwt`. Signs and verifies JWT tokens. You call `this.jwtService.sign(payload)` to create a token.
+- **`RedisService`** — from Task 2. Stores refresh tokens and blacklisted access tokens. You call `this.redisService.set(key, value, ttl)` and `this.redisService.get(key)`.
+- **`ConfigService`** — from `@nestjs/config`. Reads environment variables. You call `this.configService.get<number>('JWT_REFRESH_TTL')` to get the refresh token TTL.
+
+Here's how token generation works. This is the most important new pattern — **creating a JWT with `JwtService`**:
+
+```typescript
+import { v4 as uuid } from 'uuid';
+
+// Inside AuthService:
+private async generateTokens(userId: string, role: string) {
+  // jti = "JWT ID" — a unique identifier for this specific token.
+  // We store this in Redis when the user logs out so we can reject it.
+  const jti = uuid();
+
+  // JwtService.sign() creates a signed JWT string.
+  // { sub, role, jti } is the "payload" — the data baked into the token.
+  // "sub" is a JWT standard claim meaning "subject" (the user).
+  const accessToken = this.jwtService.sign(
+    { sub: userId, role, jti },
+    // expiresIn comes from your .env (e.g., '15m')
+  );
+
+  // Refresh token is just a random UUID — not a JWT.
+  // We store it in Redis and the client sends it back to get new access tokens.
+  const refreshTokenId = uuid();
+
+  // Store in Redis with a composite key so we can look it up directly.
+  // Key format: auth:refresh:<userId>:<tokenId>
+  // This avoids KEYS/SCAN operations (which are O(N) and don't scale).
+  const refreshKey = `auth:refresh:${userId}:${refreshTokenId}`;
+  const refreshTtl = this.configService.get<number>('JWT_REFRESH_TTL', 604800); // 7 days in seconds
+  await this.redisService.set(refreshKey, 'valid', refreshTtl);
+
+  // Return the refresh token as "userId:tokenId" so the client can send it back
+  // and we can reconstruct the exact Redis key to look it up.
+  const refreshToken = `${userId}:${refreshTokenId}`;
+
+  return { accessToken, refreshToken };
+}
+```
+
+Now implement the four public methods:
+
+**`register(dto)`** — Create a new user and return tokens
+1. Check if email already exists: `const existing = await this.userService.findByEmail(dto.email)`
+2. If exists, `throw new ConflictException('Email already exists')`
+3. Create the user: `const user = await this.userService.create(dto)`
+4. Generate tokens: `const tokens = await this.generateTokens(user.id, user.role)`
+5. Return `{ ...tokens, user }`
+
+**`login(dto)`** — Verify credentials and return tokens
+1. Find user by email (use `findByEmail` which includes the password hash)
+2. If not found, `throw new UnauthorizedException('Invalid credentials')`
+3. Compare passwords using bcrypt:
+   ```typescript
+   import * as bcrypt from 'bcrypt';
+   const isMatch = await bcrypt.compare(dto.password, user.password);
+   ```
+   `bcrypt.compare()` takes the plain-text password the user just typed and the hashed password from the database. It hashes the input the same way and checks if they match — you never decrypt the stored password.
+4. If no match, `throw new UnauthorizedException('Invalid credentials')`
+5. Generate tokens and return them with the user (strip password first)
+
+**`refresh(dto)`** — Exchange a refresh token for new tokens
+1. Parse the refresh token to get userId and tokenId: `const [userId, tokenId] = dto.refreshToken.split(':')`
+2. Build the Redis key: `auth:refresh:${userId}:${tokenId}`
+3. Look it up: `const stored = await this.redisService.get(key)`
+4. If not found (expired or already used), `throw new UnauthorizedException('Invalid refresh token')`
+5. Delete the old refresh token (rotation — each refresh token is single-use)
+6. Generate new token pair and return them
+
+**`logout(jti, userId)`** — Blacklist the current access token
+1. Store the access token's jti in Redis: `auth:blacklist:${jti}` with TTL = access token remaining life (or just use the full access token TTL for simplicity)
+2. Delete the user's refresh tokens so they can't get new access tokens
+
+Imports you'll need at the top:
+```typescript
+import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { UserService } from '../user/user.service';
+import { RedisService } from '../../../infrastructure/redis/redis.service';
+import * as bcrypt from 'bcrypt';
+import { v4 as uuid } from 'uuid';
+```
 
 - [ ] **Step 4: Create JWT Strategy**
 
-Create `src/domain/identity/auth/strategies/jwt.strategy.ts`:
-- Extends `PassportStrategy(Strategy)`
-- Extract JWT from `Authorization: Bearer <token>` header
-- `validate(payload)`:
-  - Check if `payload.jti` is blacklisted in Redis. If yes, throw `UnauthorizedException`.
-  - Return `{ sub: payload.sub, role: payload.role, jti: payload.jti }`
+Create `src/domain/identity/auth/strategies/jwt.strategy.ts`.
+
+This is a completely new pattern — **Passport Strategies**. Here's the Dart comparison:
+
+```
+Flutter (Dio interceptor):                  NestJS (Passport Strategy):
+class AuthInterceptor extends Interceptor { @Injectable()
+  void onRequest(options, handler) {        export class JwtStrategy extends PassportStrategy(Strategy) {
+    final token = getToken();                 constructor(config: ConfigService, private redis: RedisService) {
+    if (isValid(token)) {                       super({
+      options.headers['auth'] = token;            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      handler.next(options);                      secretOrKey: config.get('JWT_SECRET'),
+    } else {                                    });
+      handler.reject('unauthorized');           }
+    }
+  }                                             async validate(payload: any) {
+}                                                 // This runs AFTER the JWT signature is verified.
+                                                  // Check if the token has been blacklisted (user logged out).
+                                                  const blacklisted = await this.redis.get(`auth:blacklist:${payload.jti}`);
+                                                  if (blacklisted) {
+                                                    throw new UnauthorizedException('Token revoked');
+                                                  }
+                                                  // Whatever you return here gets attached to the request
+                                                  // and is available via @CurrentUser() in controllers.
+                                                  return { userId: payload.sub, role: payload.role, jti: payload.jti };
+                                                }
+                                              }
+```
+
+The key thing to understand: `PassportStrategy(Strategy)` is a **mixin** (like Dart mixins). It takes the `passport-jwt` Strategy class and wraps it so NestJS can use it. The `super()` call configures WHERE to find the token (the `Authorization: Bearer <token>` header) and WHAT secret to verify it with. The `validate()` method runs AFTER the signature check passes — you add your own logic (like checking the blacklist).
+
+Full file:
+```typescript
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { RedisService } from '../../../../infrastructure/redis/redis.service';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(
+    configService: ConfigService,
+    private redisService: RedisService,
+  ) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      secretOrKey: configService.get<string>('JWT_SECRET'),
+    });
+  }
+
+  async validate(payload: any) {
+    const blacklisted = await this.redisService.get(`auth:blacklist:${payload.jti}`);
+    if (blacklisted) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+    return { userId: payload.sub, role: payload.role, jti: payload.jti };
+  }
+}
+```
+
+Note: `configService` is NOT marked `private` in the constructor. That's intentional — we only need it in the `super()` call, not as a class property. The `redisService` IS `private` because we use it in `validate()`.
 
 - [ ] **Step 5: Create `AuthController`**
 
+Same controller pattern as Task 4's `UserController`. The `@Public()` decorator (from Task 3's shared kernel) tells the JWT guard to skip authentication for that endpoint.
+
 Create `src/domain/identity/auth/auth.controller.ts`:
-- `POST /auth/register` — `@Public()`, call `authService.register(dto)`
-- `POST /auth/login` — `@Public()`, call `authService.login(dto)`
-- `POST /auth/refresh` — `@Public()`, call `authService.refresh(dto)`
-- `POST /auth/logout` — requires auth, extract `jti` from `@CurrentUser()`, call `authService.logout()`
+
+```typescript
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { Public } from '../../../shared/decorators/public.decorator';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../../shared/types/interfaces';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private authService: AuthService) {}
+
+  @Public()           // No JWT required — anyone can register
+  @Post('register')
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Public()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)  // POST defaults to 201, but login should return 200
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  logout(@CurrentUser() user: AuthenticatedUser) {
+    // user.jti is the access token's unique ID — we blacklist it so it can't be reused
+    return this.authService.logout(user.jti, user.userId);
+  }
+}
+```
+
+New thing here: `@HttpCode(HttpStatus.OK)`. By default, NestJS returns HTTP 201 for POST requests (meaning "resource created"). But login and refresh don't create anything — they return data. So we override to 200. `HttpStatus.OK` is just the number `200` with a readable name.
 
 - [ ] **Step 6: Create `AuthModule`**
 
-Create `src/domain/identity/auth/auth.module.ts`:
-- Imports: `JwtModule.registerAsync()` (get secret and expiry from config), `PassportModule`, `UserModule`
-- Providers: `AuthService`, `JwtStrategy`
-- Controllers: `AuthController`
+Create `src/domain/identity/auth/auth.module.ts`.
+
+This module introduces a new pattern: **`JwtModule.registerAsync()`**. Here's why it exists and what it does:
+
+```
+Flutter (initializing with config):         NestJS (async module registration):
+void main() async {                         @Module({
+  final config = await loadConfig();          imports: [
+  final auth = FirebaseAuth(                    JwtModule.registerAsync({
+    apiKey: config.apiKey,                        imports: [ConfigModule],
+    timeout: config.timeout,                      inject: [ConfigService],
+  );                                              useFactory: (config: ConfigService) => ({
+  runApp(MyApp(auth: auth));                        secret: config.get('JWT_SECRET'),
+}                                                   signOptions: {
+                                                      expiresIn: config.get('JWT_EXPIRY', '15m'),
+                                                    },
+                                                  }),
+                                                }),
+                                                PassportModule,
+                                                UserModule,
+                                              ],
+```
+
+Why `registerAsync` instead of just `register`? Because the JWT secret comes from environment variables (via `ConfigService`), and `ConfigService` is loaded asynchronously. `registerAsync` lets you inject `ConfigService` and use it to configure the module. `useFactory` is a function that receives the injected services and returns the configuration object.
+
+Full file:
+```typescript
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { UserModule } from '../user/user.module';
+
+@Module({
+  imports: [
+    PassportModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_EXPIRY', '15m'),
+        },
+      }),
+    }),
+    UserModule,
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy],
+})
+export class AuthModule {}
+```
+
+`PassportModule` is imported with no configuration — it just makes `@UseGuards(AuthGuard('jwt'))` available (which your global `JwtAuthGuard` from Task 3 already uses).
 
 - [ ] **Step 7: Create `IdentityModule` (barrel)**
 
-Create `src/domain/identity/identity.module.ts`:
-- Imports: `AuthModule`, `UserModule`
-- Exports: `UserModule` (AuthModule stays internal)
+Create `src/domain/identity/identity.module.ts`.
+
+Same module pattern as Task 4 — this is a "barrel" that groups related modules. Like a Dart barrel file (`export 'user.dart'; export 'auth.dart';`), but for NestJS modules:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
+
+@Module({
+  imports: [AuthModule, UserModule],
+  exports: [UserModule],  // AuthModule stays internal — no one outside Identity needs it
+})
+export class IdentityModule {}
+```
+
+Why export `UserModule` but not `AuthModule`? Because other contexts (Organization, Event, Social) need `UserService` to look up users, but they never call `AuthService` directly. Auth is only accessed through HTTP endpoints.
 
 - [ ] **Step 8: Wire IdentityModule into AppModule**
 
-Import `IdentityModule` in `app.module.ts`.
+Import `IdentityModule` in `app.module.ts`. Same pattern as wiring modules in Task 4.
 
-- [ ] **Step 9: Manual smoke test**
+- [ ] **Step 9: Verify it compiles**
 
 ```bash
 npm run start:dev
+```
 
+Expected: compiles with 0 errors. The app should start and the auth endpoints should be available.
+
+- [ ] **Step 10: Manual smoke test**
+
+```bash
 # Register
 curl -X POST http://localhost:3000/api/v1/auth/register \
   -H "Content-Type: application/json" \
@@ -1068,24 +1345,244 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 
 # Use the returned accessToken to hit a protected route
 curl http://localhost:3000/api/v1/users/me \
-  -H "Authorization: Bearer <accessToken>"
+  -H "Authorization: Bearer <paste-accessToken-here>"
 ```
 
 Expected: Register returns user + tokens. Login returns tokens. /users/me returns user profile.
 
-- [ ] **Step 10: Write E2E test for auth flow**
+- [ ] **Step 11: Write `AuthService` unit tests**
 
-Create `test/e2e/auth.e2e-spec.ts`:
-- Test full register → login → refresh → access protected route → logout → verify token rejected flow
-- Use `@nestjs/testing` to create the app, `supertest` for HTTP calls
-- Tests run against real Postgres + Redis (Docker must be running)
+NOW write the tests — you understand what each method does because you just built it.
 
-Run: `npx jest test/e2e/auth.e2e-spec.ts`
-Expected: PASS
+Create `src/domain/identity/auth/auth.service.spec.ts`.
 
-- [ ] **Step 11: Write E2E test for user endpoints**
+Same testing pattern as Task 4's `UserService` tests — mock dependencies, test each method. The difference is you have **four** dependencies to mock instead of one:
 
-Create `test/e2e/user.e2e-spec.ts`:
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from './auth.service';
+import { UserService } from '../user/user.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { RedisService } from '../../../infrastructure/redis/redis.service';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
+
+// You need to mock bcrypt — it's an external library, not an injected service.
+// jest.mock() replaces the real module with a fake one for ALL tests in this file.
+jest.mock('bcrypt', () => ({
+  compare: jest.fn(),
+}));
+import * as bcrypt from 'bcrypt';
+
+// Same for uuid
+jest.mock('uuid', () => ({
+  v4: jest.fn().mockReturnValue('mock-uuid'),
+}));
+
+describe('AuthService', () => {
+  let service: AuthService;
+
+  const mockUser = {
+    id: 'user-123',
+    email: 'test@test.com',
+    password: '$2b$12$fakehash',
+    displayName: 'Test User',
+    role: 'USER',
+  };
+
+  // Four mock dependencies — one for each constructor parameter
+  const mockUserService = {
+    findByEmail: jest.fn(),
+    create: jest.fn(),
+  };
+
+  const mockJwtService = {
+    sign: jest.fn().mockReturnValue('mock-access-token'),
+  };
+
+  const mockRedisService = {
+    set: jest.fn(),
+    get: jest.fn(),
+    del: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn().mockReturnValue(604800), // 7 days in seconds
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: UserService, useValue: mockUserService },
+        { provide: JwtService, useValue: mockJwtService },
+        { provide: RedisService, useValue: mockRedisService },
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
+    }).compile();
+
+    service = module.get<AuthService>(AuthService);
+    jest.clearAllMocks();
+  });
+
+  describe('register', () => {
+    it('should create user and return tokens', async () => {
+      // ARRANGE: email doesn't exist yet, user creation succeeds
+      mockUserService.findByEmail.mockResolvedValue(null);
+      mockUserService.create.mockResolvedValue(mockUser);
+
+      // ACT
+      const result = await service.register({
+        email: 'test@test.com',
+        password: 'password123',
+        displayName: 'Test User',
+      });
+
+      // ASSERT
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
+      expect(result.user).toBeDefined();
+      expect(mockRedisService.set).toHaveBeenCalled(); // refresh token stored in Redis
+    });
+
+    it('should throw ConflictException if email already exists', async () => {
+      mockUserService.findByEmail.mockResolvedValue(mockUser);
+
+      await expect(
+        service.register({ email: 'test@test.com', password: 'password123', displayName: 'Test' }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('login', () => {
+    it('should return tokens for valid credentials', async () => {
+      mockUserService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true); // password matches
+
+      const result = await service.login({ email: 'test@test.com', password: 'password123' });
+
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
+    });
+
+    // NOW YOU WRITE THESE:
+
+    // Test: throws UnauthorizedException for non-existent email
+    //   Hint: mockUserService.findByEmail.mockResolvedValue(null)
+
+    // Test: throws UnauthorizedException for wrong password
+    //   Hint: (bcrypt.compare as jest.Mock).mockResolvedValue(false)
+  });
+
+  describe('refresh', () => {
+    // Test: validates refresh token from Redis, returns new token pair
+    //   Hint: mockRedisService.get.mockResolvedValue('valid')
+    //   Hint: check that mockRedisService.del was called (old token deleted)
+    //   Hint: check that mockRedisService.set was called (new token stored)
+
+    // Test: throws UnauthorizedException for invalid/expired refresh token
+    //   Hint: mockRedisService.get.mockResolvedValue(null)
+  });
+
+  describe('logout', () => {
+    // Test: blacklists access token jti in Redis, deletes refresh token
+    //   Hint: call service.logout('mock-jti', 'user-123')
+    //   Hint: check mockRedisService.set was called with key containing 'blacklist'
+  });
+});
+```
+
+Run: `npx jest src/domain/identity/auth/auth.service.spec.ts`
+Expected: ALL PASS
+
+- [ ] **Step 12: Write E2E tests for auth and user flows**
+
+E2E (end-to-end) tests are different from unit tests. Here's the Dart analogy:
+
+```
+Flutter:                                    NestJS:
+Unit test = test a single class             Unit test = test a single service
+  (mock everything else)                      (mock everything else)
+
+Widget test = test a widget tree            (no direct equivalent)
+  (mock services, test UI)
+
+Integration test = test the full app        E2E test = test the full API
+  (real device, real navigation,              (real database, real Redis,
+   tap buttons, verify screens)                send HTTP requests, verify responses)
+```
+
+E2E tests spin up your entire NestJS app and send real HTTP requests to it using `supertest`. They use a real database and real Redis (from Docker), so they test the entire stack — controllers, services, database queries, validation, guards, everything.
+
+Create `test/e2e/auth.e2e-spec.ts`. Here's the pattern:
+
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../../src/app.module';
+
+describe('Auth (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    // This creates a REAL NestJS app (not mocked) with all modules wired up
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  // supertest sends real HTTP requests to your running app.
+  // .expect(201) asserts the HTTP status code.
+  // .expect(res => ...) lets you assert on the response body.
+
+  it('POST /auth/register — should register a new user', () => {
+    return request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'e2e-test@test.com',
+        password: 'password123',
+        displayName: 'E2E User',
+      })
+      .expect(201)
+      .expect((res) => {
+        expect(res.body.accessToken).toBeDefined();
+        expect(res.body.refreshToken).toBeDefined();
+        expect(res.body.user.email).toBe('e2e-test@test.com');
+      });
+  });
+
+  it('POST /auth/register — should reject duplicate email', () => {
+    return request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'e2e-test@test.com',  // same email as above
+        password: 'password123',
+        displayName: 'Another User',
+      })
+      .expect(409);
+  });
+
+  // NOW YOU WRITE THESE:
+
+  // Test: POST /auth/login — should return tokens for valid credentials
+  // Test: POST /auth/login — should reject invalid password (401)
+  // Test: POST /auth/refresh — should return new tokens
+  // Test: POST /auth/logout — should blacklist access token
+  // Test: After logout, using the old token should return 401
+});
+```
+
+Also create `test/e2e/user.e2e-spec.ts`:
 - Register a user, login, get access token
 - `GET /users/me` — returns current user profile
 - `PATCH /users/me` — update displayName and bio, verify changes
@@ -1094,10 +1591,10 @@ Create `test/e2e/user.e2e-spec.ts`:
 - `GET /users/:id` — 404 for non-existent user
 - All endpoints return 401 without auth token
 
-Run: `npx jest test/e2e/user.e2e-spec.ts`
+Run: `npx jest test/e2e/ --runInBand`
 Expected: PASS
 
-- [ ] **Step 12: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
 git add -A
@@ -1109,128 +1606,495 @@ git commit -m "feat: add Auth module (register, login, refresh, logout, JWT stra
 ## Task 6: Organization Context — Organization Module
 
 > **New concepts in this task:**
-> - **Prisma Transactions** = `prisma.$transaction()` runs multiple database operations atomically — either ALL succeed or ALL rollback. When creating an org, we also create the OWNER membership. If either fails, neither is saved. Like database transactions in any SQL database — you may not have used these directly in Flutter.
-> - **Slug** = a URL-friendly version of a name. "Manila Runners Club" becomes `manila-runners-club`. Used in URLs instead of IDs: `/organizations/manila-runners-club` is more readable than `/organizations/550e8400-e29b-41d4...`.
-> - **Soft Delete** = instead of actually deleting a record (`DELETE FROM`), you set `deletedAt = now()`. The record still exists but is filtered out of queries. This preserves data integrity — if an org is deleted, the events and memberships that reference it don't break.
-> - **Cross-context permission check** = `EventService` needs to verify "is this user an admin of this org?" It calls `OrgMembershipService.verifyRole()` — it does NOT query the OrgMembership table directly. This is the boundary rule in action.
+> - **Prisma Transactions** = `prisma.$transaction()` runs multiple database operations atomically — either ALL succeed or ALL rollback. When creating an org, we also create the OWNER membership. If either fails, neither is saved. Like wrapping multiple `await db.insert()` calls in a single database transaction. In Dart/Flutter, if you've used `sqflite`, it's like `db.transaction((txn) async { ... })`.
+> - **Slug** = a URL-friendly version of a name. "Manila Runners Club" becomes `manila-runners-club`. Used in URLs instead of IDs: `/organizations/manila-runners-club` is more readable than `/organizations/550e8400-e29b-41d4...`. Like how WordPress or Medium generates URL paths from article titles.
+> - **Soft Delete** = instead of actually deleting a record (`DELETE FROM`), you set `deletedAt = now()`. The record still exists but is filtered out of queries. This preserves data integrity — if an org is deleted, the events and memberships that reference it don't break. Like marking an item as "archived" instead of truly deleting it.
+> - **Cursor-based pagination** = instead of "page 2 of 10" (offset-based), you say "give me 20 items after this specific item." More efficient for large datasets because the database can use an index to jump directly to the cursor position. The cursor is typically the last item's ID from the previous page.
+> - **Role hierarchy** = OWNER > ADMIN > MEMBER. When checking permissions, you compare numerically: assign each role a number and check `userRoleLevel >= requiredRoleLevel`. This way, an OWNER automatically has ADMIN permissions without listing every role explicitly.
 
-**Goal:** CRUD for organizations. Only authenticated users can create orgs (creator auto-becomes OWNER). Update/delete requires org-level permissions (checked in service layer via OrgMembershipService, which we build in the next task — for now, stub the permission check or build org + membership together).
-
-**Note:** Organization and OrgMembership are tightly coupled (creating an org also creates the OWNER membership). Build both in this task.
+**Goal:** CRUD for organizations with membership management. Creator auto-becomes OWNER. Update/delete requires org-level permissions. Build both Organization and OrgMembership together since they're tightly coupled (creating an org also creates the OWNER membership).
 
 **Files:**
-- Create: `src/domain/organization/organization/organization.service.ts`
-- Create: `src/domain/organization/organization/organization.module.ts`
-- Create: `src/domain/organization/organization/organization.controller.ts`
-- Create: `src/domain/organization/organization/dto/create-organization.dto.ts`
-- Create: `src/domain/organization/organization/dto/update-organization.dto.ts`
 - Create: `src/domain/organization/org-membership/org-membership.service.ts`
 - Create: `src/domain/organization/org-membership/org-membership.module.ts`
 - Create: `src/domain/organization/org-membership/org-membership.controller.ts`
 - Create: `src/domain/organization/org-membership/dto/add-member.dto.ts`
 - Create: `src/domain/organization/org-membership/dto/update-role.dto.ts`
+- Create: `src/domain/organization/organization/organization.service.ts`
+- Create: `src/domain/organization/organization/organization.module.ts`
+- Create: `src/domain/organization/organization/organization.controller.ts`
+- Create: `src/domain/organization/organization/dto/create-organization.dto.ts`
+- Create: `src/domain/organization/organization/dto/update-organization.dto.ts`
 - Create: `src/domain/organization/organization-context.module.ts`
-- Test: `src/domain/organization/organization/organization.service.spec.ts`
 - Test: `src/domain/organization/org-membership/org-membership.service.spec.ts`
+- Test: `src/domain/organization/organization/organization.service.spec.ts`
 - Test: `test/e2e/organization.e2e-spec.ts`
 - Test: `test/e2e/org-membership.e2e-spec.ts`
 
 **Steps:**
 
-- [ ] **Step 1: Write `OrgMembershipService` unit test (failing)**
+- [ ] **Step 1: Implement `OrgMembershipService`**
 
-Tests:
-- `verifyRole(userId, orgId, minRole)` — returns membership if role >= minRole, throws `ForbiddenException` if not
-- `verifyRole` — role hierarchy: OWNER > ADMIN > MEMBER
-- `addMember(orgId, userId, role)` — creates membership, throws `ConflictException` if already a member
-- `removeMember(orgId, userId)` — deletes membership, throws `ForbiddenException` if trying to remove OWNER
-- `updateRole(orgId, userId, newRole)` — updates role, only OWNER can do this
-- `listMembers(orgId)` — returns all members with user info
-- `findByUserAndOrg(userId, orgId)` — returns membership or null
+Create `src/domain/organization/org-membership/org-membership.service.ts`.
 
-- [ ] **Step 2: Implement `OrgMembershipService`**
+This service follows the same pattern as `UserService` from Task 4 — `@Injectable()` class with `PrismaService` injected. The new concept here is the **role hierarchy pattern**:
 
-Key logic:
-- `verifyRole()` is the critical method — used by every org-scoped action across all contexts
-- Role hierarchy check: define `ROLE_HIERARCHY = { OWNER: 3, ADMIN: 2, MEMBER: 1 }` and compare numerically
-- `addMember()` uses Prisma's `create` with unique constraint handling
-- All queries filter for non-deleted orgs
+```typescript
+// Role hierarchy — higher number means more permissions.
+// This lets you check "does the user have at least ADMIN access?"
+// by comparing numbers instead of listing every valid role.
+const ROLE_HIERARCHY: Record<string, number> = {
+  MEMBER: 1,
+  ADMIN: 2,
+  OWNER: 3,
+};
+```
 
-Run unit tests. Expected: PASS.
+```
+Dart comparison:
+enum OrgRole { member, admin, owner }       // In Dart, enums have .index (0, 1, 2)
+bool hasPermission(OrgRole user, OrgRole required) {
+  return user.index >= required.index;       // OWNER(2) >= ADMIN(1) → true
+}
 
-- [ ] **Step 3: Create membership DTOs**
+TypeScript equivalent:
+function hasPermission(userRole: string, requiredRole: string): boolean {
+  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
+}
+```
 
-`add-member.dto.ts`:
-- `userId` — `@IsUUID()`
-- `role` — `@IsEnum(OrgRole)`, default `MEMBER`
+Your service needs these methods:
 
-`update-role.dto.ts`:
-- `role` — `@IsEnum(OrgRole)`
+**`verifyRole(userId, orgId, minRole)`** — This is the most important method. Every org-scoped action across ALL contexts calls this to check permissions.
+1. Look up the membership: `prisma.orgMembership.findUnique({ where: { userId_organizationId: { userId, organizationId: orgId } } })`
+2. If not found, `throw new ForbiddenException('Not a member of this organization')`
+3. Compare roles: `if (ROLE_HIERARCHY[membership.role] < ROLE_HIERARCHY[minRole]) throw new ForbiddenException(...)`
+4. Return the membership (useful for callers that need it)
 
-- [ ] **Step 4: Create `OrgMembershipModule`**
+**`addMember(orgId, userId, role)`** — Creates a membership. Throws `ConflictException` if already a member (Prisma unique constraint catches this — see Task 9 for the pattern of catching Prisma errors).
 
-Provides and exports `OrgMembershipService`. Registers `OrgMembershipController`.
+**`removeMember(orgId, userId)`** — Deletes a membership. Throws `ForbiddenException` if trying to remove the OWNER (every org must have an owner).
 
-- [ ] **Step 5: Write `OrganizationService` unit test (failing)**
+**`updateRole(orgId, userId, newRole)`** — Updates the member's role. Only an OWNER should be able to call this (the controller checks that before calling this method).
 
-Tests:
-- `create(userId, dto)` — creates org + OWNER membership in a Prisma transaction
-- `create()` — generates slug from name (lowercase, hyphenated)
-- `create()` — throws `ConflictException` if slug already exists
-- `findBySlug(slug)` — returns org or throws `NotFoundException`
-- `findById(id)` — returns org, filters soft-deleted
-- `exists(id)` — returns boolean (used by social context)
-- `update(id, dto)` — updates org fields
-- `delete(id)` — sets `deletedAt` (soft delete)
-- `list(pagination)` — cursor-based pagination
+**`listMembers(orgId)`** — Returns all memberships for an org, with user info included:
+```typescript
+this.prisma.orgMembership.findMany({
+  where: { organizationId: orgId },
+  include: { user: { select: { id: true, email: true, displayName: true, avatar: true } } },
+});
+```
 
-- [ ] **Step 6: Implement `OrganizationService`**
+**`findByUserAndOrg(userId, orgId)`** — Returns a membership or null. Used for checking if someone is a member without throwing.
 
-Key logic:
-- `create()` uses `prisma.$transaction()` to atomically create the org AND the OWNER membership
-- Slug generation: `name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')`
-- `delete()` soft deletes: sets `deletedAt = new Date()`
-- All find queries include `where: { deletedAt: null }`
-- `list()` implements cursor-based pagination per spec
+- [ ] **Step 2: Create membership DTOs**
 
-Run unit tests. Expected: PASS.
+Same DTO pattern as Task 4.
 
-- [ ] **Step 7: Create organization DTOs**
+Create `src/domain/organization/org-membership/dto/add-member.dto.ts`:
+```typescript
+import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 
-`create-organization.dto.ts`:
-- `name` — `@IsString()`, `@MinLength(2)`, `@MaxLength(100)`
-- `description` — optional, `@IsString()`, `@MaxLength(1000)`
+export class AddMemberDto {
+  @IsUUID()
+  userId: string;
 
-`update-organization.dto.ts`:
-- All fields optional: name, description, logo, banner
+  @IsOptional()
+  @IsEnum(['MEMBER', 'ADMIN'])   // Can't add someone as OWNER — there's only one
+  role?: string = 'MEMBER';
+}
+```
 
-- [ ] **Step 8: Create `OrganizationController`**
+Create `src/domain/organization/org-membership/dto/update-role.dto.ts`:
+```typescript
+import { IsEnum } from 'class-validator';
 
-- `POST /organizations` — `@CurrentUser()` gets userId, call `orgService.create(userId, dto)`
-- `GET /organizations` — requires auth (consistent with spec: all browse actions require `USER` role), paginated list
-- `GET /organizations/:slug` — requires auth, find by slug
-- `PATCH /organizations/:id` — check org admin permission via `membershipService.verifyRole(userId, orgId, 'ADMIN')`, then update
-- `DELETE /organizations/:id` — check OWNER role, then soft delete
+export class UpdateRoleDto {
+  @IsEnum(['MEMBER', 'ADMIN'])   // Can't transfer OWNER via this endpoint
+  role: string;
+}
+```
 
-- [ ] **Step 9: Create `OrgMembershipController`**
+- [ ] **Step 3: Create `OrgMembershipModule`**
+
+Same module pattern as Task 4's `UserModule`:
+
+```typescript
+@Module({
+  controllers: [OrgMembershipController],
+  providers: [OrgMembershipService],
+  exports: [OrgMembershipService],  // Other contexts need this for permission checks
+})
+export class OrgMembershipModule {}
+```
+
+- [ ] **Step 4: Implement `OrganizationService`**
+
+Create `src/domain/organization/organization/organization.service.ts`.
+
+Same service pattern as Task 4. The new patterns here are **Prisma transactions** and **slug generation**:
+
+**Prisma transactions** — When creating an org, you also need to create the OWNER membership. These two operations MUST succeed or fail together. Here's how:
+
+```typescript
+// prisma.$transaction() takes an async function.
+// The "tx" parameter is a Prisma client scoped to this transaction.
+// If ANY operation inside throws, ALL operations are rolled back.
+async create(userId: string, dto: CreateOrganizationDto) {
+  const slug = this.generateSlug(dto.name);
+
+  return this.prisma.$transaction(async (tx) => {
+    // Operation 1: Create the organization
+    const org = await tx.organization.create({
+      data: {
+        name: dto.name,
+        slug,
+        description: dto.description,
+      },
+    });
+
+    // Operation 2: Make the creator the OWNER
+    await tx.orgMembership.create({
+      data: {
+        userId,
+        organizationId: org.id,
+        role: 'OWNER',
+      },
+    });
+
+    return org;
+  });
+}
+```
+
+```
+Dart comparison (sqflite):
+await db.transaction((txn) async {
+  final orgId = await txn.insert('organizations', {...});
+  await txn.insert('org_memberships', { orgId: orgId, userId: userId, role: 'OWNER' });
+});
+// If the second insert fails, the first is rolled back automatically.
+```
+
+**Slug generation** — Converting a name to a URL-friendly string:
+```typescript
+private generateSlug(name: string): string {
+  return name
+    .toLowerCase()                    // "Manila Runners Club" → "manila runners club"
+    .replace(/\s+/g, '-')            // "manila runners club" → "manila-runners-club"
+    .replace(/[^a-z0-9-]/g, '');     // Remove anything that's not a letter, number, or hyphen
+}
+```
+
+**Cursor-based pagination** — Instead of `OFFSET 20 LIMIT 10`, you use the last item's ID as a cursor:
+```typescript
+async list(cursor?: string, take: number = 20) {
+  const args: any = {
+    take,
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+  };
+
+  if (cursor) {
+    args.skip = 1;           // Skip the cursor item itself
+    args.cursor = { id: cursor };  // Start from this ID
+  }
+
+  return this.prisma.organization.findMany(args);
+}
+```
+
+```
+Dart comparison (Firestore):
+// Firestore uses the same concept — .startAfterDocument() is cursor-based pagination.
+final query = firestore.collection('orgs')
+  .orderBy('createdAt', descending: true)
+  .startAfterDocument(lastDoc)   // ← this is the "cursor"
+  .limit(20);
+```
+
+The rest of the methods follow the Task 4 pattern:
+
+**`findBySlug(slug)`** — `prisma.organization.findUnique({ where: { slug, deletedAt: null } })`. Throw `NotFoundException` if null.
+
+**`findById(id)`** — Same as `findBySlug` but by ID.
+
+**`exists(id)`** — Same pattern as `UserService.exists()` from Task 4.
+
+**`update(id, dto)`** — `prisma.organization.update({ where: { id }, data: dto })`.
+
+**`delete(id)`** — **Soft delete pattern:** instead of `prisma.organization.delete()`, use:
+```typescript
+async delete(id: string) {
+  await this.prisma.organization.update({
+    where: { id },
+    data: { deletedAt: new Date() },   // Mark as deleted, don't actually remove
+  });
+}
+```
+
+- [ ] **Step 5: Create organization DTOs**
+
+Create `src/domain/organization/organization/dto/create-organization.dto.ts`:
+```typescript
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+
+export class CreateOrganizationDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+}
+```
+
+Create `src/domain/organization/organization/dto/update-organization.dto.ts`:
+```typescript
+import { IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
+
+export class UpdateOrganizationDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+
+  @IsOptional()
+  @IsUrl()
+  logo?: string;
+
+  @IsOptional()
+  @IsUrl()
+  banner?: string;
+}
+```
+
+- [ ] **Step 6: Create `OrganizationController`**
+
+Same controller pattern as Task 4 and 5. The new thing here is **calling `OrgMembershipService` from the controller for permission checks**:
+
+Create `src/domain/organization/organization/organization.controller.ts`:
+
+```typescript
+@Controller('organizations')
+export class OrganizationController {
+  constructor(
+    private orgService: OrganizationService,
+    private membershipService: OrgMembershipService,
+  ) {}
+
+  @Post()
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrganizationDto) {
+    return this.orgService.create(user.userId, dto);
+  }
+
+  @Get()
+  list(@Query('cursor') cursor?: string) {
+    return this.orgService.list(cursor);
+  }
+
+  @Get(':slug')
+  findBySlug(@Param('slug') slug: string) {
+    return this.orgService.findBySlug(slug);
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateOrganizationDto,
+  ) {
+    // Permission check: only ADMIN or higher can update
+    await this.membershipService.verifyRole(user.userId, id, 'ADMIN');
+    return this.orgService.update(id, dto);
+  }
+
+  @Delete(':id')
+  async delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    // Permission check: only OWNER can delete
+    await this.membershipService.verifyRole(user.userId, id, 'OWNER');
+    return this.orgService.delete(id);
+  }
+}
+```
+
+Notice the pattern: the controller calls `membershipService.verifyRole()` BEFORE the actual operation. If the user doesn't have permission, `verifyRole` throws `ForbiddenException` and the update/delete never runs. This is how all org-scoped permissions work across the entire app.
+
+- [ ] **Step 7: Create `OrgMembershipController`**
+
+Same controller pattern. Endpoints:
 
 - `POST /organizations/:id/members` — check ADMIN role, add member
 - `GET /organizations/:id/members` — list members (any authenticated user can view)
 - `PATCH /organizations/:id/members/:userId` — check OWNER role, update member role
 - `DELETE /organizations/:id/members/:userId` — check ADMIN role, remove member (not OWNER)
 
-- [ ] **Step 10: Create `OrganizationModule` and `OrganizationContextModule` (barrel)**
+- [ ] **Step 8: Create `OrganizationModule` and `OrganizationContextModule` (barrel)**
 
-`OrganizationModule` provides `OrganizationService`, exports it.
-`OrganizationContextModule` imports + exports `OrganizationModule` and `OrgMembershipModule`.
+`OrganizationModule`:
+```typescript
+@Module({
+  imports: [OrgMembershipModule],        // Need membership for permission checks
+  controllers: [OrganizationController],
+  providers: [OrganizationService],
+  exports: [OrganizationService],
+})
+export class OrganizationModule {}
+```
 
-- [ ] **Step 11: Wire into AppModule**
+`OrganizationContextModule` — the barrel that groups everything:
+```typescript
+@Module({
+  imports: [OrganizationModule, OrgMembershipModule],
+  exports: [OrganizationModule, OrgMembershipModule],  // Other contexts need both
+})
+export class OrganizationContextModule {}
+```
 
-Import `OrganizationContextModule`.
+- [ ] **Step 9: Wire into AppModule**
 
-- [ ] **Step 12: Write E2E tests**
+Import `OrganizationContextModule` in `app.module.ts`.
 
-`test/e2e/organization.e2e-spec.ts`:
+- [ ] **Step 10: Verify it compiles**
+
+```bash
+npm run start:dev
+```
+
+Expected: compiles with 0 errors.
+
+- [ ] **Step 11: Write `OrgMembershipService` unit tests**
+
+Create `src/domain/organization/org-membership/org-membership.service.spec.ts`.
+
+Same testing pattern as Task 4. Mock `PrismaService`, test each method:
+
+```typescript
+describe('OrgMembershipService', () => {
+  let service: OrgMembershipService;
+
+  const mockMembership = {
+    id: 'membership-123',
+    userId: 'user-123',
+    organizationId: 'org-123',
+    role: 'ADMIN',
+  };
+
+  const mockPrisma = {
+    orgMembership: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrgMembershipService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
+
+    service = module.get<OrgMembershipService>(OrgMembershipService);
+    jest.clearAllMocks();
+  });
+
+  describe('verifyRole', () => {
+    it('should return membership when role is sufficient', async () => {
+      mockPrisma.orgMembership.findUnique.mockResolvedValue(mockMembership); // role is ADMIN
+
+      const result = await service.verifyRole('user-123', 'org-123', 'MEMBER');
+
+      expect(result).toBeDefined();
+      expect(result.role).toBe('ADMIN');
+    });
+
+    it('should throw ForbiddenException when role is insufficient', async () => {
+      mockPrisma.orgMembership.findUnique.mockResolvedValue({ ...mockMembership, role: 'MEMBER' });
+
+      await expect(
+        service.verifyRole('user-123', 'org-123', 'ADMIN'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    // NOW YOU WRITE THESE:
+    // Test: throws ForbiddenException when user is not a member at all
+    //   Hint: mockPrisma.orgMembership.findUnique.mockResolvedValue(null)
+  });
+
+  describe('addMember', () => {
+    // Test: creates membership successfully
+    // Test: throws ConflictException if already a member
+  });
+
+  describe('removeMember', () => {
+    // Test: removes member successfully
+    // Test: throws ForbiddenException when trying to remove OWNER
+  });
+
+  describe('updateRole', () => {
+    // Test: updates role successfully
+  });
+
+  describe('listMembers', () => {
+    // Test: returns all members for an org
+  });
+});
+```
+
+- [ ] **Step 12: Write `OrganizationService` unit tests**
+
+Create `src/domain/organization/organization/organization.service.spec.ts`.
+
+Same pattern. The special thing here is **mocking a Prisma transaction**:
+
+```typescript
+const mockPrisma = {
+  organization: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+  },
+  orgMembership: {
+    create: jest.fn(),
+  },
+  // Mock $transaction — it receives a callback, so call the callback
+  // with the mockPrisma itself (so tx.organization.create uses your fakes)
+  $transaction: jest.fn().mockImplementation((callback) => callback(mockPrisma)),
+};
+```
+
+Tests to write:
+- `create()` — creates org + OWNER membership in a transaction
+- `create()` — generates slug from name
+- `findBySlug()` — returns org or throws NotFoundException
+- `findById()` — returns org, filters soft-deleted
+- `exists()` — returns boolean
+- `update()` — updates org fields
+- `delete()` — sets deletedAt (soft delete)
+- `list()` — returns paginated results
+
+Run: `npx jest src/domain/organization/`
+Expected: ALL PASS
+
+- [ ] **Step 13: Write E2E tests**
+
+Same E2E pattern as Task 5 — use `supertest` to send real HTTP requests.
+
+Create `test/e2e/organization.e2e-spec.ts`:
 - Register a user, create an org, verify OWNER membership was auto-created
 - Get org by slug
 - Update org (as OWNER)
@@ -1238,7 +2102,7 @@ Import `OrganizationContextModule`.
 - Delete org (soft delete)
 - List orgs with pagination
 
-`test/e2e/org-membership.e2e-spec.ts`:
+Create `test/e2e/org-membership.e2e-spec.ts`:
 - Add a member
 - Try adding duplicate member (should 409)
 - Update member role (as OWNER)
@@ -1249,7 +2113,7 @@ Import `OrganizationContextModule`.
 Run: `npx jest test/e2e/organization.e2e-spec.ts test/e2e/org-membership.e2e-spec.ts`
 Expected: PASS
 
-- [ ] **Step 13: Commit**
+- [ ] **Step 14: Commit**
 
 ```bash
 git add -A
@@ -1261,8 +2125,9 @@ git commit -m "feat: add Organization context (org CRUD, membership, permissions
 ## Task 7: Event Context — Event Module
 
 > **New concepts in this task:**
-> - **State Machine** = a pattern where an entity can only be in certain states and can only transition between specific states. Like a Flutter `AnimationController` that can only go `forward()` or `reverse()` — you can't jump to a random position. Event status (`DRAFT → PUBLISHED → CLOSED → COMPLETED`) follows strict rules. Invalid transitions throw errors.
+> - **State Machine** = a pattern where an entity can only be in certain states and can only transition between specific states. Like a Flutter `AnimationStatus` that goes `dismissed → forward → completed → reverse → dismissed` — you can't jump from `dismissed` to `completed` directly. Event status (`DRAFT -> PUBLISHED -> CLOSED -> COMPLETED`) follows strict rules. Invalid transitions throw errors.
 > - **`BadRequestException`** = NestJS's 400 error. Thrown when the client sends a valid request but the business logic rejects it (e.g., trying to publish a COMPLETED event). Different from `UnauthorizedException` (401, not logged in) or `ForbiddenException` (403, logged in but not allowed).
+> - **`@IsDateString()`** = a `class-validator` decorator that validates ISO 8601 date strings like `"2026-05-15T09:00:00.000Z"`. Like validating `DateTime.parse()` in Dart — if the string isn't a valid date, the request is rejected with a 400 error before your code even runs.
 
 **Goal:** Event CRUD with status state machine. Events belong to organizations. Only org admins can create/manage events. Status transitions enforced in the service layer.
 
@@ -1278,81 +2143,328 @@ git commit -m "feat: add Organization context (org CRUD, membership, permissions
 
 **Steps:**
 
-- [ ] **Step 1: Write `EventService` unit test (failing)**
+- [ ] **Step 1: Implement `EventService`**
 
-Tests:
-- `create(orgId, dto)` — creates event with status DRAFT
-- `findBySlug(slug)` — returns event or throws NotFoundException
-- `findById(id)` — returns event or throws
-- `exists(id)` — returns boolean (for social context)
-- `update(id, dto)` — updates fields
-- `updateStatus(id, newStatus)` — state machine tests:
-  - DRAFT → PUBLISHED: allowed
-  - PUBLISHED → DRAFT: allowed only if zero registrations
-  - PUBLISHED → CLOSED: allowed
-  - CLOSED → COMPLETED: allowed
-  - DRAFT → CLOSED: throws `BadRequestException` (invalid transition)
-  - COMPLETED → anything: throws (irreversible)
-- `delete(id)` — only allowed if status is DRAFT, throws otherwise
-- `listPublished(pagination)` — returns only PUBLISHED events, cursor-paginated
+Create `src/domain/event/event/event.service.ts`.
 
-- [ ] **Step 2: Implement `EventService`**
+Same service pattern as Task 4 and 6 — `@Injectable()` with `PrismaService` injected. The new pattern here is the **state machine** using a `VALID_TRANSITIONS` map:
 
-Key logic:
-- Status transition validation: define `VALID_TRANSITIONS` map
-  ```
-  DRAFT -> [PUBLISHED]
-  PUBLISHED -> [DRAFT, CLOSED]
-  CLOSED -> [COMPLETED]
-  COMPLETED -> [] (terminal)
-  ```
-- PUBLISHED → DRAFT: additionally check `registrationCount === 0`
-- `delete()`: check `status === DRAFT`, hard delete
-- Slug generation: same pattern as org (from event name)
-- `listPublished()`: cursor-based, filter `status: PUBLISHED`, order by `startDate ASC`
+```typescript
+// Define which status transitions are allowed.
+// This is a state machine — the event can only move between specific states.
+// The key is the CURRENT status, the value is an array of statuses it can move TO.
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ['PUBLISHED'],
+  PUBLISHED: ['DRAFT', 'CLOSED'],
+  CLOSED: ['COMPLETED'],
+  COMPLETED: [],              // Terminal state — can never leave COMPLETED
+};
+```
 
-Run unit tests. Expected: PASS.
+```
+Dart comparison:
+// In Flutter, you might model this as:
+final validTransitions = <EventStatus, List<EventStatus>>{
+  EventStatus.draft: [EventStatus.published],
+  EventStatus.published: [EventStatus.draft, EventStatus.closed],
+  EventStatus.closed: [EventStatus.completed],
+  EventStatus.completed: [],
+};
 
-- [ ] **Step 3: Create event DTOs**
+bool canTransition(EventStatus from, EventStatus to) {
+  return validTransitions[from]?.contains(to) ?? false;
+}
+```
 
-`create-event.dto.ts`:
-- `name` — `@IsString()`, required
-- `description` — optional, `@IsString()`
-- `location` — optional, `@IsString()`
-- `startDate` — `@IsDateString()`
-- `endDate` — `@IsDateString()`
-- Custom validation: endDate must be after startDate
+Here's how the status transition method works:
 
-`update-event.dto.ts`:
-- All fields optional (PartialType of create, minus dates that need special handling)
+```typescript
+async updateStatus(id: string, newStatus: string) {
+  // 1. Get the current event
+  const event = await this.findById(id);
 
-`update-event-status.dto.ts`:
-- `status` — `@IsEnum(EventStatus)`
+  // 2. Check if this transition is allowed
+  const allowedTransitions = VALID_TRANSITIONS[event.status];
+  if (!allowedTransitions.includes(newStatus)) {
+    throw new BadRequestException(
+      `Cannot transition from ${event.status} to ${newStatus}`,
+    );
+  }
 
-- [ ] **Step 4: Create `EventController`**
+  // 3. Special case: PUBLISHED → DRAFT only allowed if nobody registered yet
+  if (event.status === 'PUBLISHED' && newStatus === 'DRAFT') {
+    const registrationCount = await this.prisma.registration.count({
+      where: { race: { eventId: id }, status: 'CONFIRMED' },
+    });
+    if (registrationCount > 0) {
+      throw new BadRequestException(
+        'Cannot revert to DRAFT — event has confirmed registrations',
+      );
+    }
+  }
 
-- `POST /organizations/:orgId/events` — verify ADMIN role via `orgMembershipService.verifyRole()`, create event
-- `GET /events` — `@Public()` or auth required, list published events (paginated)
-- `GET /events/:slug` — get by slug
-- `PATCH /events/:id` — verify ADMIN role (look up orgId from event), update
-- `PATCH /events/:id/status` — verify ADMIN role, transition status
+  // 4. Update the status
+  return this.prisma.event.update({
+    where: { id },
+    data: { status: newStatus },
+  });
+}
+```
+
+The rest of the methods:
+
+**`create(orgId, dto)`** — Creates an event with status `DRAFT`. Generate a slug from the event name (same slug pattern as Task 6). Set `organizationId: orgId`.
+
+**`findBySlug(slug)`**, **`findById(id)`**, **`exists(id)`** — Same patterns as Task 6's Organization methods.
+
+**`update(id, dto)`** — Same as Task 6.
+
+**`delete(id)`** — Different from Task 6 (which soft deletes). Events can only be deleted if they're in DRAFT status. If not DRAFT, throw `BadRequestException`. If DRAFT, hard delete (actually remove from database):
+```typescript
+async delete(id: string) {
+  const event = await this.findById(id);
+  if (event.status !== 'DRAFT') {
+    throw new BadRequestException('Only DRAFT events can be deleted');
+  }
+  await this.prisma.event.delete({ where: { id } });
+}
+```
+
+**`listPublished(cursor?, take?)`** — Cursor-based pagination (same pattern as Task 6), but filtered to `status: 'PUBLISHED'` and ordered by `startDate ASC` (upcoming events first).
+
+- [ ] **Step 2: Create event DTOs**
+
+Create `src/domain/event/event/dto/create-event.dto.ts`:
+
+This introduces **`@IsDateString()`** — a decorator that validates ISO 8601 date strings:
+
+```typescript
+import { IsDateString, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+
+export class CreateEventDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  location?: string;
+
+  @IsDateString()    // Validates ISO 8601: "2026-05-15T09:00:00.000Z"
+  startDate: string; // In Dart you'd use DateTime, but JSON has no date type
+                     // so we accept a string and NestJS validates the format.
+
+  @IsDateString()
+  endDate: string;
+
+  // TODO: Add custom validation to ensure endDate > startDate
+  // (class-validator has @ValidateIf and custom decorators for this)
+}
+```
+
+```
+Dart comparison:
+// In Dart, you'd parse the date and validate in the constructor:
+class CreateEventDto {
+  final DateTime startDate;
+  final DateTime endDate;
+  CreateEventDto({required this.startDate, required this.endDate})
+    : assert(endDate.isAfter(startDate));
+}
+// In NestJS, @IsDateString() handles the parsing check.
+// For cross-field validation (endDate > startDate), you'd add a custom validator.
+```
+
+Create `src/domain/event/event/dto/update-event.dto.ts`:
+
+This introduces **`PartialType`** — a NestJS utility that takes an existing DTO and makes all its fields optional. Instead of copying all the fields from `CreateEventDto` and adding `@IsOptional()` to each one:
+
+```typescript
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateEventDto } from './create-event.dto';
+
+// PartialType(CreateEventDto) creates a new class with ALL the same fields
+// and ALL the same validators, but every field is now optional.
+// It's like Dart's copyWith() but for class definitions.
+export class UpdateEventDto extends PartialType(CreateEventDto) {}
+```
+
+```
+Dart comparison:
+// In Dart with freezed, you'd write:
+@freezed class Event with _$Event {
+  factory Event({required String name, ...}) = _Event;
+}
+// And use event.copyWith(name: 'New Name') for partial updates.
+// PartialType does the same thing for DTOs — makes a "partial copy" of the class.
+```
+
+Create `src/domain/event/event/dto/update-event-status.dto.ts`:
+```typescript
+import { IsEnum } from 'class-validator';
+
+export class UpdateEventStatusDto {
+  @IsEnum(['DRAFT', 'PUBLISHED', 'CLOSED', 'COMPLETED'])
+  status: string;
+}
+```
+
+- [ ] **Step 3: Create `EventController`**
+
+Same controller pattern as Task 6. Permission checks use `OrgMembershipService.verifyRole()` — same pattern as the Organization controller.
+
+Create `src/domain/event/event/event.controller.ts`:
+
+- `POST /organizations/:orgId/events` — verify ADMIN role via `membershipService.verifyRole(user.userId, orgId, 'ADMIN')`, then create event
+- `GET /events` — list published events (paginated). Auth required (consistent with spec).
+- `GET /events/:slug` — get event by slug
+- `PATCH /events/:id` — verify ADMIN role (look up `orgId` from the event first, then check role), update event
+- `PATCH /events/:id/status` — verify ADMIN role, call `eventService.updateStatus(id, dto.status)`
 - `DELETE /events/:id` — verify ADMIN role, delete (draft only)
 
-- [ ] **Step 5: Create `EventModule`**
+For the PATCH and DELETE endpoints, you need to look up the event first to get its `organizationId`, then verify the user's role in that org:
 
-Imports `OrganizationContextModule` (needs `OrgMembershipService`).
-Provides and exports `EventService`.
+```typescript
+@Patch(':id')
+async update(
+  @CurrentUser() user: AuthenticatedUser,
+  @Param('id') id: string,
+  @Body() dto: UpdateEventDto,
+) {
+  const event = await this.eventService.findById(id);
+  await this.membershipService.verifyRole(user.userId, event.organizationId, 'ADMIN');
+  return this.eventService.update(id, dto);
+}
+```
 
-- [ ] **Step 6: Write E2E tests**
+- [ ] **Step 4: Create `EventModule`**
 
-`test/e2e/event.e2e-spec.ts`:
-- Create user → create org → create event (as OWNER)
+```typescript
+@Module({
+  imports: [OrganizationContextModule],   // Needs OrgMembershipService for permission checks
+  controllers: [EventController],
+  providers: [EventService],
+  exports: [EventService],
+})
+export class EventModule {}
+```
+
+- [ ] **Step 5: Verify it compiles**
+
+```bash
+npm run start:dev
+```
+
+Expected: compiles with 0 errors.
+
+- [ ] **Step 6: Write `EventService` unit tests**
+
+Create `src/domain/event/event/event.service.spec.ts`.
+
+Same testing pattern as Tasks 4-6. The state machine tests are the most interesting part:
+
+```typescript
+describe('EventService', () => {
+  let service: EventService;
+
+  const mockEvent = {
+    id: 'event-123',
+    name: 'Manila Marathon',
+    slug: 'manila-marathon',
+    status: 'DRAFT',
+    organizationId: 'org-123',
+    startDate: new Date('2026-06-01'),
+    endDate: new Date('2026-06-01'),
+  };
+
+  const mockPrisma = {
+    event: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    registration: {
+      count: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EventService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
+
+    service = module.get<EventService>(EventService);
+    jest.clearAllMocks();
+  });
+
+  describe('updateStatus', () => {
+    it('should allow DRAFT → PUBLISHED', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...mockEvent, status: 'DRAFT' });
+      mockPrisma.event.update.mockResolvedValue({ ...mockEvent, status: 'PUBLISHED' });
+
+      const result = await service.updateStatus('event-123', 'PUBLISHED');
+
+      expect(result.status).toBe('PUBLISHED');
+    });
+
+    it('should throw BadRequestException for DRAFT → CLOSED (invalid transition)', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...mockEvent, status: 'DRAFT' });
+
+      await expect(
+        service.updateStatus('event-123', 'CLOSED'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    // NOW YOU WRITE THESE:
+
+    // Test: PUBLISHED → CLOSED: allowed
+    // Test: CLOSED → COMPLETED: allowed
+    // Test: COMPLETED → anything: throws (terminal state)
+    // Test: PUBLISHED → DRAFT with 0 registrations: allowed
+    //   Hint: mockPrisma.registration.count.mockResolvedValue(0)
+    // Test: PUBLISHED → DRAFT with registrations: throws
+    //   Hint: mockPrisma.registration.count.mockResolvedValue(5)
+  });
+
+  describe('delete', () => {
+    // Test: deletes DRAFT event successfully
+    // Test: throws BadRequestException for non-DRAFT event
+  });
+
+  describe('create', () => {
+    // Test: creates event with status DRAFT
+    // Test: generates slug from name
+  });
+
+  // findBySlug, findById, exists, listPublished — same patterns as Task 6 tests
+});
+```
+
+Run: `npx jest src/domain/event/event/`
+Expected: ALL PASS
+
+- [ ] **Step 7: Write E2E tests**
+
+Same E2E pattern as Task 5. Create `test/e2e/event.e2e-spec.ts`:
+
+- Create user, create org, create event (as OWNER)
 - Try creating event as non-member (should 403)
 - Get event by slug
 - Update event
-- Status transitions: DRAFT → PUBLISHED → CLOSED → COMPLETED
-- Try invalid transition (DRAFT → CLOSED, should 400)
-- Try PUBLISHED → DRAFT with registrations (should 400, tested after registration module exists — skip for now or mock)
+- Status transitions: DRAFT -> PUBLISHED -> CLOSED -> COMPLETED
+- Try invalid transition (DRAFT -> CLOSED, should 400)
 - Delete draft event
 - Try deleting published event (should 400)
 - List published events with pagination
@@ -1360,7 +2472,7 @@ Provides and exports `EventService`.
 Run: `npx jest test/e2e/event.e2e-spec.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add -A
@@ -1372,7 +2484,8 @@ git commit -m "feat: add Event module (CRUD, status state machine, permissions, 
 ## Task 8: Event Context — Race Module
 
 > **New concepts in this task:**
-> - **Price as integer cents** = never store money as `float` or `double` — floating point math causes rounding errors (`0.1 + 0.2 = 0.30000000000000004`). Store PHP 500.00 as `50000` (integer cents). The frontend divides by 100 for display. This is how Stripe, PayPal, and every serious payment system works.
+> - **Price as integer cents** = never store money as `float` or `double` — floating point math causes rounding errors (`0.1 + 0.2 = 0.30000000000000004` in both Dart and TypeScript). Store PHP 500.00 as `50000` (integer cents). The frontend divides by 100 for display. This is how Stripe, PayPal, and every serious payment system works. In Dart, you'd use `int priceInCents` instead of `double price`.
+> - **Parent entity status check** = before creating, updating, or deleting a race, you must check that the parent event is in DRAFT status. This is a common pattern — child entities inherit constraints from their parent. Like how in Flutter you might disable editing a form if the parent screen is in "view mode."
 > - **Capacity check** = before allowing registration, count confirmed registrations and compare to `maxParticipants`. This is a read-then-write pattern that can have race conditions under high load (two people register at the same time when only 1 slot is left). For Phase 1, a simple count is fine. Phase 4 could use database locks.
 
 **Goal:** Race CRUD within events. Races can only be created/modified on DRAFT events. Price stored as integer cents.
@@ -1388,58 +2501,315 @@ git commit -m "feat: add Event module (CRUD, status state machine, permissions, 
 
 **Steps:**
 
-- [ ] **Step 1: Write `RaceService` unit test (failing)**
+- [ ] **Step 1: Implement `RaceService`**
 
-Tests:
-- `create(eventId, dto)` — creates race, only if event is DRAFT
-- `create()` — throws `BadRequestException` if event is not DRAFT
-- `findById(id)` — returns race or throws
-- `listByEvent(eventId)` — returns all races for an event
-- `update(id, dto)` — updates race, only if parent event is DRAFT
-- `delete(id)` — deletes race, only if parent event is DRAFT
-- `checkCapacity(raceId)` — returns `{ available: boolean, remaining: number }` by counting confirmed registrations vs maxParticipants
+Create `src/domain/event/race/race.service.ts`.
 
-- [ ] **Step 2: Implement `RaceService`**
+Same service pattern as previous tasks. The new pattern here is **checking the parent entity's status before every mutation**:
 
-Key logic:
-- Every mutation checks the parent event's status: `if (event.status !== 'DRAFT') throw BadRequestException`
-- `checkCapacity()`: count registrations where `raceId = id AND status = 'CONFIRMED'`, compare to `maxParticipants`
-- Price is integer (cents). Validation happens in DTO.
+```typescript
+@Injectable()
+export class RaceService {
+  constructor(
+    private prisma: PrismaService,
+    private eventService: EventService,
+  ) {}
 
-Run unit tests. Expected: PASS.
+  // This private helper is called before every create/update/delete.
+  // It ensures the parent event is in DRAFT status.
+  private async verifyEventIsDraft(eventId: string) {
+    const event = await this.eventService.findById(eventId);
+    if (event.status !== 'DRAFT') {
+      throw new BadRequestException(
+        'Races can only be modified when the event is in DRAFT status',
+      );
+    }
+    return event;
+  }
 
-- [ ] **Step 3: Create race DTOs**
+  async create(eventId: string, dto: CreateRaceDto) {
+    await this.verifyEventIsDraft(eventId);   // Guard: event must be DRAFT
 
-`create-race.dto.ts`:
-- `name` — `@IsString()` (e.g., "5K Fun Run")
-- `distance` — `@IsNumber()`, `@Min(0)`
-- `unit` — `@IsString()` (e.g., "km", "mi")
-- `maxParticipants` — `@IsInt()`, `@Min(1)`
-- `price` — `@IsInt()`, `@Min(0)` (in cents, 0 = free)
-- `currency` — optional, `@IsString()`, default `PHP`
+    return this.prisma.race.create({
+      data: {
+        ...dto,
+        eventId,
+      },
+    });
+  }
 
-`update-race.dto.ts`:
-- PartialType of create
+  async update(id: string, dto: UpdateRaceDto) {
+    const race = await this.findById(id);
+    await this.verifyEventIsDraft(race.eventId);   // Guard: event must be DRAFT
 
-- [ ] **Step 4: Create `RaceController`**
+    return this.prisma.race.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async delete(id: string) {
+    const race = await this.findById(id);
+    await this.verifyEventIsDraft(race.eventId);   // Guard: event must be DRAFT
+
+    await this.prisma.race.delete({ where: { id } });
+  }
+}
+```
+
+```
+Dart comparison:
+// Like checking if a parent form is editable before allowing child changes:
+class RaceBloc {
+  final EventRepository eventRepo;
+
+  Future<void> createRace(String eventId, RaceData data) async {
+    final event = await eventRepo.getById(eventId);
+    if (event.status != EventStatus.draft) {
+      throw StateError('Event is not in draft status');
+    }
+    // ... create the race
+  }
+}
+```
+
+Other methods:
+
+**`findById(id)`** — Same pattern as previous tasks.
+
+**`listByEvent(eventId)`** — `prisma.race.findMany({ where: { eventId } })`. Simple — no pagination needed since an event won't have thousands of races.
+
+**`checkCapacity(raceId)`** — Counts confirmed registrations and compares to max:
+```typescript
+async checkCapacity(raceId: string): Promise<{ available: boolean; remaining: number }> {
+  const race = await this.findById(raceId);
+
+  const confirmedCount = await this.prisma.registration.count({
+    where: { raceId, status: 'CONFIRMED' },
+  });
+
+  const remaining = race.maxParticipants - confirmedCount;
+
+  return {
+    available: remaining > 0,
+    remaining: Math.max(0, remaining),
+  };
+}
+```
+
+- [ ] **Step 2: Create race DTOs**
+
+Create `src/domain/event/race/dto/create-race.dto.ts`:
+```typescript
+import { IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+
+export class CreateRaceDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  name: string;                    // e.g., "5K Fun Run"
+
+  @IsNumber()
+  @Min(0)
+  distance: number;                // e.g., 5.0
+
+  @IsString()
+  unit: string;                    // e.g., "km" or "mi"
+
+  @IsInt()
+  @Min(1)
+  maxParticipants: number;         // e.g., 500
+
+  @IsInt()
+  @Min(0)
+  price: number;                   // In CENTS. 50000 = PHP 500.00. 0 = free.
+
+  @IsOptional()
+  @IsString()
+  currency?: string = 'PHP';      // Default to Philippine Peso
+}
+```
+
+Create `src/domain/event/race/dto/update-race.dto.ts`:
+
+This uses **`PartialType`** — same pattern introduced in Task 7:
+
+```typescript
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateRaceDto } from './create-race.dto';
+
+export class UpdateRaceDto extends PartialType(CreateRaceDto) {}
+```
+
+- [ ] **Step 3: Create `RaceController`**
+
+Same controller pattern. Permission checks use the same `OrgMembershipService.verifyRole()` pattern from Tasks 6-7, but you need to look up the event first to get its `organizationId`:
 
 - `POST /events/:eventId/races` — verify ADMIN role on the event's org, create race
-- `GET /events/:eventId/races` — list races for event (public for published events)
-- `PATCH /races/:id` — verify ADMIN role, update
+- `GET /events/:eventId/races` — list races for event
+- `PATCH /races/:id` — verify ADMIN role (look up event, then org), update
 - `DELETE /races/:id` — verify ADMIN role, delete
 
-- [ ] **Step 5: Create `RaceModule`**
+```typescript
+@Post()
+async create(
+  @CurrentUser() user: AuthenticatedUser,
+  @Param('eventId') eventId: string,
+  @Body() dto: CreateRaceDto,
+) {
+  // Get the event to find which org it belongs to
+  const event = await this.eventService.findById(eventId);
+  // Check the user is an admin of that org
+  await this.membershipService.verifyRole(user.userId, event.organizationId, 'ADMIN');
+  return this.raceService.create(eventId, dto);
+}
+```
 
-Part of event context. Provides and exports `RaceService`.
+- [ ] **Step 4: Create `RaceModule`**
 
-- [ ] **Step 6: Write E2E tests**
+```typescript
+@Module({
+  imports: [OrganizationContextModule],   // For permission checks
+  controllers: [RaceController],
+  providers: [RaceService],
+  exports: [RaceService],
+})
+export class RaceModule {}
+```
 
-Test flow: user → org → event (draft) → add races → try modifying races on published event (should fail).
+Note: `RaceModule` also needs access to `EventService`. Since `RaceModule` and `EventModule` are in the same context, you can either import `EventModule` directly or use `forwardRef()` if there's a circular dependency. We'll wire this up in Task 9 when creating the `EventContextModule` barrel.
+
+- [ ] **Step 5: Verify it compiles**
+
+```bash
+npm run start:dev
+```
+
+Expected: compiles with 0 errors.
+
+- [ ] **Step 6: Write `RaceService` unit tests**
+
+Create `src/domain/event/race/race.service.spec.ts`.
+
+Same testing pattern. Mock `PrismaService` and `EventService`:
+
+```typescript
+describe('RaceService', () => {
+  let service: RaceService;
+
+  const mockRace = {
+    id: 'race-123',
+    name: '5K Fun Run',
+    distance: 5,
+    unit: 'km',
+    maxParticipants: 500,
+    price: 50000,
+    currency: 'PHP',
+    eventId: 'event-123',
+  };
+
+  const mockDraftEvent = { id: 'event-123', status: 'DRAFT', organizationId: 'org-123' };
+  const mockPublishedEvent = { id: 'event-123', status: 'PUBLISHED', organizationId: 'org-123' };
+
+  const mockPrisma = {
+    race: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    registration: {
+      count: jest.fn(),
+    },
+  };
+
+  const mockEventService = {
+    findById: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        RaceService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: EventService, useValue: mockEventService },
+      ],
+    }).compile();
+
+    service = module.get<RaceService>(RaceService);
+    jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('should create race when event is DRAFT', async () => {
+      mockEventService.findById.mockResolvedValue(mockDraftEvent);
+      mockPrisma.race.create.mockResolvedValue(mockRace);
+
+      const result = await service.create('event-123', {
+        name: '5K Fun Run', distance: 5, unit: 'km',
+        maxParticipants: 500, price: 50000,
+      });
+
+      expect(result).toEqual(mockRace);
+    });
+
+    it('should throw BadRequestException when event is not DRAFT', async () => {
+      mockEventService.findById.mockResolvedValue(mockPublishedEvent);
+
+      await expect(
+        service.create('event-123', {
+          name: '5K Fun Run', distance: 5, unit: 'km',
+          maxParticipants: 500, price: 50000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // NOW YOU WRITE THESE:
+
+  describe('update', () => {
+    // Test: updates race when event is DRAFT
+    // Test: throws BadRequestException when event is not DRAFT
+  });
+
+  describe('delete', () => {
+    // Test: deletes race when event is DRAFT
+    // Test: throws BadRequestException when event is not DRAFT
+  });
+
+  describe('checkCapacity', () => {
+    // Test: returns { available: true, remaining: 495 } when 5 out of 500 confirmed
+    // Test: returns { available: false, remaining: 0 } when at capacity
+  });
+
+  describe('listByEvent', () => {
+    // Test: returns all races for an event
+  });
+});
+```
+
+Run: `npx jest src/domain/event/race/`
+Expected: ALL PASS
+
+- [ ] **Step 7: Write E2E tests**
+
+Same E2E pattern. Create `test/e2e/race.e2e-spec.ts`:
+
+Full flow: register user, create org, create event (draft), add races, try modifying races on a published event (should fail).
+
+- Create race on draft event (201)
+- List races for event
+- Update race on draft event
+- Publish the event
+- Try creating race on published event (should 400)
+- Try updating race on published event (should 400)
+- Try deleting race on published event (should 400)
 
 Run: `npx jest test/e2e/race.e2e-spec.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add -A
@@ -1452,74 +2822,342 @@ git commit -m "feat: add Race module (CRUD, draft-only mutations, capacity check
 
 > **New concepts in this task:**
 > - **Unique constraint as business rule** = the database has a unique constraint on `(userId, raceId)`. If a user tries to register twice, Prisma throws a unique constraint error. We catch this and throw a `ConflictException` (409). The database enforces the rule even if our code has a bug — defense in depth.
-> - **URL params vs body** = in `POST /races/:raceId/registrations`, the `raceId` comes from the URL (`@Param('raceId')`), not the request body. The userId comes from the JWT (`@CurrentUser()`). The request body is empty. This is RESTful design — the URL identifies the resource, the JWT identifies the actor.
+> - **Empty body endpoint** = in `POST /races/:raceId/registrations`, the `raceId` comes from the URL (`@Param('raceId')`), not the request body. The userId comes from the JWT (`@CurrentUser()`). The request body is empty. This is RESTful design — the URL identifies the resource, the JWT identifies the actor. Like `POST /api/follow/user/123` — you don't send `{ userId: 123 }` in the body because it's already in the URL.
+> - **Catching Prisma unique constraint errors** = when Prisma hits a unique constraint violation, it throws a `PrismaClientKnownRequestError` with code `P2002`. You catch this specific error and translate it to a user-friendly HTTP error.
 
-**Goal:** Users register for races. Enforces: event must be PUBLISHED, race must have capacity, user can't double-register. Registration status: PENDING → CONFIRMED → CANCELLED.
+**Goal:** Users register for races. Enforces: event must be PUBLISHED, race must have capacity, user can't double-register. Registration status: PENDING -> CONFIRMED -> CANCELLED.
 
 **Files:**
 - Create: `src/domain/event/registration/registration.service.ts`
 - Create: `src/domain/event/registration/registration.module.ts`
 - Create: `src/domain/event/registration/registration.controller.ts`
-- Create: `src/domain/event/registration/dto/create-registration.dto.ts`
 - Test: `src/domain/event/registration/registration.service.spec.ts`
 - Test: `test/e2e/registration.e2e-spec.ts`
 
 **Steps:**
 
-- [ ] **Step 1: Write `RegistrationService` unit test (failing)**
+- [ ] **Step 1: Implement `RegistrationService`**
 
-Tests:
-- `register(userId, raceId)`:
-  - Creates registration with status PENDING
-  - Throws `BadRequestException` if event is not PUBLISHED
-  - Throws `BadRequestException` if race is at capacity
-  - Throws `ConflictException` if user already registered for this race
-- `cancel(registrationId, userId)`:
-  - Sets status to CANCELLED
-  - Throws `ForbiddenException` if userId doesn't match registration owner
-  - Throws `BadRequestException` if already CANCELLED
-- `confirm(registrationId)` — sets status to CONFIRMED (admin action for Phase 1, payment-linked in Phase 3)
-- `listByRace(raceId, pagination)` — paginated list (for org admins)
-- `listByUser(userId, pagination)` — paginated list (for the user)
+Create `src/domain/event/registration/registration.service.ts`.
 
-- [ ] **Step 2: Implement `RegistrationService`**
+Same service pattern. The new patterns here are **catching Prisma unique constraint errors** and **empty-body endpoints**. Let's start with the error catching:
 
-Key logic:
-- `register()`:
-  1. Get race + parent event in one query (include event)
-  2. Check `event.status === 'PUBLISHED'`
-  3. Check capacity via `raceService.checkCapacity(raceId)`
-  4. Create registration (unique constraint on userId+raceId catches duplicates)
-- `cancel()`: verify ownership, update status
-- `confirm()`: update status to CONFIRMED (for now, manually by org admin)
+```typescript
+import { Prisma } from '@prisma/client';
 
-Run unit tests. Expected: PASS.
+async register(userId: string, raceId: string) {
+  // 1. Get race + parent event in one query
+  const race = await this.prisma.race.findUnique({
+    where: { id: raceId },
+    include: { event: true },   // Prisma joins: also fetch the parent event
+  });
+  if (!race) throw new NotFoundException('Race not found');
 
-- [ ] **Step 3: Create `RegistrationController`**
+  // 2. Check event is PUBLISHED
+  if (race.event.status !== 'PUBLISHED') {
+    throw new BadRequestException('Event is not open for registration');
+  }
 
-Note: No `CreateRegistrationDto` needed — the `raceId` comes from the URL param (`@Param('raceId')`), and `userId` comes from the JWT via `@CurrentUser()`. The body is empty.
+  // 3. Check capacity
+  const capacity = await this.raceService.checkCapacity(raceId);
+  if (!capacity.available) {
+    throw new BadRequestException('Race is at full capacity');
+  }
 
-- `POST /races/:raceId/registrations` — register current user (raceId from URL param, userId from JWT)
-- `GET /races/:raceId/registrations` — list registrations (org member permission check via `OrgMembershipService`)
-- `GET /users/me/registrations` — list current user's registrations
-- `PATCH /registrations/:id/confirm` — confirm a registration (requires ADMIN role on the event's org). This is a manual admin action in Phase 1; Phase 3 links it to payment approval.
-- `DELETE /registrations/:id` — cancel own registration
+  // 4. Create registration — unique constraint catches duplicates
+  try {
+    return await this.prisma.registration.create({
+      data: {
+        userId,
+        raceId,
+        status: 'PENDING',
+      },
+    });
+  } catch (error) {
+    // Prisma throws PrismaClientKnownRequestError with code 'P2002'
+    // when a unique constraint is violated.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException('You are already registered for this race');
+    }
+    throw error;  // Re-throw any other unexpected error
+  }
+}
+```
 
-- [ ] **Step 5: Create `RegistrationModule`**
+```
+Dart comparison:
+// In Dart with sqflite, catching a unique constraint error looks like:
+try {
+  await db.insert('registrations', { 'user_id': userId, 'race_id': raceId });
+} on DatabaseException catch (e) {
+  if (e.isUniqueConstraintError()) {
+    throw AlreadyRegisteredException();
+  }
+  rethrow;
+}
+// Same idea — the database enforces the rule, you translate the error.
+```
 
-Part of event context.
+Other methods:
 
-- [ ] **Step 6: Create `EventContextModule` (barrel)**
+**`cancel(registrationId, userId)`** — Ownership check + status update:
+```typescript
+async cancel(registrationId: string, userId: string) {
+  const registration = await this.findById(registrationId);
 
-Wire up `EventModule`, `RaceModule`, `RegistrationModule`. Export all three. Import `OrganizationContextModule` and `IdentityModule`.
+  // Only the person who registered can cancel
+  if (registration.userId !== userId) {
+    throw new ForbiddenException('You can only cancel your own registration');
+  }
 
-- [ ] **Step 7: Wire into AppModule**
+  if (registration.status === 'CANCELLED') {
+    throw new BadRequestException('Registration is already cancelled');
+  }
 
-Import `EventContextModule`.
+  return this.prisma.registration.update({
+    where: { id: registrationId },
+    data: { status: 'CANCELLED' },
+  });
+}
+```
+
+**`confirm(registrationId)`** — Sets status to CONFIRMED. This is an admin action in Phase 1 (manually confirming registrations). In Phase 3, this will be triggered automatically when payment is approved.
+
+**`listByRace(raceId, cursor?, take?)`** — Cursor-based pagination (same pattern as Task 6).
+
+**`listByUser(userId, cursor?, take?)`** — Same pagination, filtered by `userId`.
+
+**`findById(id)`** — Same pattern as previous tasks.
+
+- [ ] **Step 2: Create `RegistrationController`**
+
+Create `src/domain/event/registration/registration.controller.ts`.
+
+The new pattern here is an **empty body endpoint** — the POST request has no body at all. Everything comes from the URL and the JWT:
+
+```typescript
+@Controller()
+export class RegistrationController {
+  constructor(
+    private registrationService: RegistrationService,
+    private eventService: EventService,
+    private membershipService: OrgMembershipService,
+  ) {}
+
+  // POST /races/:raceId/registrations
+  // No @Body() parameter — the body is empty.
+  // raceId comes from the URL, userId comes from the JWT.
+  @Post('races/:raceId/registrations')
+  register(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('raceId') raceId: string,
+  ) {
+    return this.registrationService.register(user.userId, raceId);
+  }
+
+  // GET /races/:raceId/registrations — org admin sees all registrations
+  @Get('races/:raceId/registrations')
+  async listByRace(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('raceId') raceId: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    // Look up the race → event → org to check permission
+    const race = await this.registrationService.findRaceWithEvent(raceId);
+    await this.membershipService.verifyRole(user.userId, race.event.organizationId, 'MEMBER');
+    return this.registrationService.listByRace(raceId, cursor);
+  }
+
+  // GET /users/me/registrations — user sees their own registrations
+  @Get('users/me/registrations')
+  listMyRegistrations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.registrationService.listByUser(user.userId, cursor);
+  }
+
+  // PATCH /registrations/:id/confirm — admin confirms a registration
+  @Patch('registrations/:id/confirm')
+  async confirm(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    // TODO: look up registration → race → event → org, verify ADMIN role
+    return this.registrationService.confirm(id);
+  }
+
+  // DELETE /registrations/:id — cancel own registration
+  @Delete('registrations/:id')
+  cancel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.registrationService.cancel(id, user.userId);
+  }
+}
+```
+
+```
+Dart comparison:
+// In Flutter/Dart, an empty-body POST would look like:
+final response = await dio.post('/races/$raceId/registrations');
+// No body parameter. The server knows WHO is registering from the auth token,
+// and WHAT they're registering for from the URL.
+```
+
+- [ ] **Step 3: Create `RegistrationModule`**
+
+```typescript
+@Module({
+  controllers: [RegistrationController],
+  providers: [RegistrationService],
+  exports: [RegistrationService],
+})
+export class RegistrationModule {}
+```
+
+- [ ] **Step 4: Create `EventContextModule` (barrel)**
+
+This barrel module wires up all three modules in the Event context:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { EventModule } from './event/event.module';
+import { RaceModule } from './race/race.module';
+import { RegistrationModule } from './registration/registration.module';
+import { OrganizationContextModule } from '../organization/organization-context.module';
+
+@Module({
+  imports: [
+    EventModule,
+    RaceModule,
+    RegistrationModule,
+    OrganizationContextModule,   // All event context modules need org permission checks
+  ],
+  exports: [EventModule, RaceModule, RegistrationModule],
+})
+export class EventContextModule {}
+```
+
+- [ ] **Step 5: Wire into AppModule**
+
+Import `EventContextModule` in `app.module.ts`. You can now remove the individual `EventModule` if you had imported it directly — the barrel handles it.
+
+- [ ] **Step 6: Verify it compiles**
+
+```bash
+npm run start:dev
+```
+
+Expected: compiles with 0 errors.
+
+- [ ] **Step 7: Write `RegistrationService` unit tests**
+
+Create `src/domain/event/registration/registration.service.spec.ts`.
+
+Same testing pattern. The unique constraint error test is the interesting new one:
+
+```typescript
+import { Prisma } from '@prisma/client';
+
+describe('RegistrationService', () => {
+  let service: RegistrationService;
+
+  const mockRaceWithEvent = {
+    id: 'race-123',
+    maxParticipants: 500,
+    eventId: 'event-123',
+    event: { id: 'event-123', status: 'PUBLISHED', organizationId: 'org-123' },
+  };
+
+  const mockRegistration = {
+    id: 'reg-123',
+    userId: 'user-123',
+    raceId: 'race-123',
+    status: 'PENDING',
+  };
+
+  const mockPrisma = {
+    race: { findUnique: jest.fn() },
+    registration: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+    },
+  };
+
+  const mockRaceService = {
+    checkCapacity: jest.fn(),
+  };
+
+  // ... standard beforeEach setup ...
+
+  describe('register', () => {
+    it('should create registration when event is PUBLISHED and has capacity', async () => {
+      mockPrisma.race.findUnique.mockResolvedValue(mockRaceWithEvent);
+      mockRaceService.checkCapacity.mockResolvedValue({ available: true, remaining: 499 });
+      mockPrisma.registration.create.mockResolvedValue(mockRegistration);
+
+      const result = await service.register('user-123', 'race-123');
+
+      expect(result.status).toBe('PENDING');
+    });
+
+    it('should throw ConflictException on duplicate registration', async () => {
+      mockPrisma.race.findUnique.mockResolvedValue(mockRaceWithEvent);
+      mockRaceService.checkCapacity.mockResolvedValue({ available: true, remaining: 499 });
+
+      // Simulate Prisma throwing a unique constraint error
+      mockPrisma.registration.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+        }),
+      );
+
+      await expect(
+        service.register('user-123', 'race-123'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    // NOW YOU WRITE THESE:
+    // Test: throws BadRequestException when event is not PUBLISHED
+    // Test: throws BadRequestException when race is at capacity
+  });
+
+  describe('cancel', () => {
+    // Test: cancels registration successfully
+    // Test: throws ForbiddenException when userId doesn't match
+    // Test: throws BadRequestException when already CANCELLED
+  });
+
+  describe('confirm', () => {
+    // Test: sets status to CONFIRMED
+  });
+});
+```
+
+Run: `npx jest src/domain/event/registration/`
+Expected: ALL PASS
 
 - [ ] **Step 8: Write E2E tests**
 
-Full flow: user → org → event → publish → races → register → try duplicate (409) → try on unpublished (400) → cancel → list user's registrations.
+Same E2E pattern. Create `test/e2e/registration.e2e-spec.ts`:
+
+Full flow: register user, create org, create event, publish event, add races, then:
+- Register for a race (201)
+- Try registering again (should 409 — duplicate)
+- Create a second user, register them too
+- Try registering on an unpublished event (should 400)
+- Cancel registration
+- List user's registrations
+- Admin confirms a registration
 
 Run: `npx jest test/e2e/registration.e2e-spec.ts`
 Expected: PASS
@@ -1536,8 +3174,9 @@ git commit -m "feat: add Registration module (register, cancel, capacity check, 
 ## Task 10: Social Context — Follow Module
 
 > **New concepts in this task:**
-> - **Polymorphic relation** = one table that can point to different entity types. The `Follow` table has `targetId` + `targetType` instead of separate `followedUserId`, `followedOrgId`, `followedEventId` columns. Trade-off: simpler code, but the database can't enforce foreign keys on `targetId` (since it could be a user, org, or event ID). We validate at the application layer instead.
-> - **Cross-context dependency** = Follow module needs to verify that the target exists. It calls `UserService.exists()`, `OrganizationService.exists()`, or `EventService.exists()` based on `targetType`. This is why the Follow module imports all three context barrel modules — it's the only module in Phase 1 that depends on everything.
+> - **Polymorphic relation** = one table that can point to different entity types. The `Follow` table has `targetId` + `targetType` instead of separate `followedUserId`, `followedOrgId`, `followedEventId` columns. Trade-off: simpler code, but the database can't enforce foreign keys on `targetId` (since it could be a user, org, or event ID). We validate at the application layer instead. Like a Dart class with `dynamic targetId` and an enum for the type.
+> - **`switch/case` for polymorphic validation** = when following a target, you need to verify the target exists. But which service you call depends on `targetType`. A `switch` statement dispatches to the right service. This is the TypeScript equivalent of pattern matching in Dart 3.
+> - **Importing multiple barrel modules** = the Follow module is the only module in Phase 1 that depends on ALL three other contexts (Identity, Organization, Event). It imports their barrel modules to access `UserService.exists()`, `OrganizationService.exists()`, and `EventService.exists()`.
 
 **Goal:** Polymorphic follow system. Users follow users, orgs, or events. Validates target existence via cross-context service calls.
 
@@ -1552,74 +3191,327 @@ git commit -m "feat: add Registration module (register, cancel, capacity check, 
 
 **Steps:**
 
-- [ ] **Step 1: Write `FollowService` unit test (failing)**
+- [ ] **Step 1: Implement `FollowService`**
 
-Tests:
-- `follow(followerId, targetId, targetType)`:
-  - Creates follow record
-  - Validates target exists (calls appropriate service based on targetType)
-  - Throws `NotFoundException` if target doesn't exist
-  - Throws `ConflictException` if already following
-  - Throws `BadRequestException` if trying to follow yourself
-- `unfollow(followId, userId)`:
-  - Deletes follow record
-  - Throws `ForbiddenException` if userId doesn't match followerId
-- `listFollowing(userId, pagination)` — what userId follows
-- `listFollowers(targetId, targetType, pagination)` — who follows the target
-- `isFollowing(followerId, targetId, targetType)` — returns boolean
+Create `src/domain/social/follow/follow.service.ts`.
 
-- [ ] **Step 2: Implement `FollowService`**
+Same service pattern. This service has the most dependencies of any service so far — it needs `PrismaService` plus three cross-context services for target validation:
 
-Key logic:
-- Target validation dispatch:
-  ```
-  switch(targetType):
-    USER -> userService.exists(targetId)
-    ORGANIZATION -> organizationService.exists(targetId)
-    EVENT -> eventService.exists(targetId)
-  ```
-- Self-follow prevention: `if (targetType === 'USER' && targetId === followerId) throw BadRequest`
-- Unique constraint on (followerId, targetId, targetType) catches duplicates
+```typescript
+@Injectable()
+export class FollowService {
+  constructor(
+    private prisma: PrismaService,
+    private userService: UserService,
+    private organizationService: OrganizationService,
+    private eventService: EventService,
+  ) {}
+}
+```
 
-Run unit tests. Expected: PASS.
+```
+Dart comparison:
+// Like a social bloc that needs access to multiple repositories:
+class FollowBloc extends Cubit<FollowState> {
+  final UserRepository userRepo;
+  final OrgRepository orgRepo;
+  final EventRepository eventRepo;
+  final FollowRepository followRepo;
 
-- [ ] **Step 3: Create `CreateFollowDto`**
+  FollowBloc(this.userRepo, this.orgRepo, this.eventRepo, this.followRepo)
+    : super(FollowInitial());
+}
+```
 
-- `targetId` — `@IsUUID()`
-- `targetType` — `@IsEnum(FollowTargetType)`
+The key new pattern is **`switch/case` for polymorphic validation**. When a user wants to follow something, you need to verify that the target actually exists. But which service you call depends on what TYPE of thing they're following:
 
-- [ ] **Step 4: Create `FollowController`**
+```typescript
+// TypeScript switch/case is like Dart's switch expression,
+// but without Dart 3's exhaustive pattern matching.
+private async validateTargetExists(targetId: string, targetType: string): Promise<void> {
+  let exists: boolean;
 
-- `POST /follows` — follow target
-- `DELETE /follows/:id` — unfollow
-- `GET /users/:id/following` — list who user follows
-- `GET /users/:id/followers` — list user's followers (targetType=USER)
-- `GET /organizations/:id/followers` — list org's followers
-- `GET /events/:id/followers` — list event's followers
+  switch (targetType) {
+    case 'USER':
+      exists = await this.userService.exists(targetId);
+      break;
+    case 'ORGANIZATION':
+      exists = await this.organizationService.exists(targetId);
+      break;
+    case 'EVENT':
+      exists = await this.eventService.exists(targetId);
+      break;
+    default:
+      throw new BadRequestException(`Invalid target type: ${targetType}`);
+  }
 
-- [ ] **Step 5: Create `FollowModule` and `SocialContextModule` (barrel)**
+  if (!exists) {
+    throw new NotFoundException(`${targetType} not found`);
+  }
+}
+```
 
-`FollowModule` imports `IdentityModule`, `OrganizationContextModule`, `EventContextModule`.
-`SocialContextModule` imports and exports `FollowModule`.
+```
+Dart 3 comparison:
+// In Dart 3, you'd use pattern matching:
+Future<bool> validateTarget(String targetId, FollowTargetType type) async {
+  return switch (type) {
+    FollowTargetType.user => await userRepo.exists(targetId),
+    FollowTargetType.organization => await orgRepo.exists(targetId),
+    FollowTargetType.event => await eventRepo.exists(targetId),
+  };
+}
+// TypeScript doesn't have exhaustive pattern matching (yet),
+// so we use the default case to catch invalid types.
+```
 
-- [ ] **Step 6: Wire into AppModule**
+Now implement the service methods:
 
-Import `SocialContextModule`.
+**`follow(followerId, targetId, targetType)`** — Create a follow:
+1. Self-follow prevention: `if (targetType === 'USER' && targetId === followerId) throw new BadRequestException(...)`
+2. Validate target exists: `await this.validateTargetExists(targetId, targetType)`
+3. Create the follow record. Catch unique constraint error (same Prisma `P2002` pattern from Task 9) and throw `ConflictException`.
 
-- [ ] **Step 7: Write E2E tests**
+**`unfollow(followId, userId)`** — Delete a follow:
+1. Find the follow record
+2. Verify ownership: `if (follow.followerId !== userId) throw new ForbiddenException(...)`
+3. Delete it
 
-- Follow a user, follow an org, follow an event
+**`listFollowing(userId, cursor?, take?)`** — What a user follows. Cursor-based pagination (same pattern as Task 6).
+
+**`listFollowers(targetId, targetType, cursor?, take?)`** — Who follows a target. Cursor-based pagination with filter on `targetId` and `targetType`.
+
+**`isFollowing(followerId, targetId, targetType)`** — Returns boolean. Used by frontend to show "Following" vs "Follow" button.
+```typescript
+async isFollowing(followerId: string, targetId: string, targetType: string): Promise<boolean> {
+  const follow = await this.prisma.follow.findUnique({
+    where: {
+      followerId_targetId_targetType: { followerId, targetId, targetType },
+    },
+  });
+  return !!follow;   // Same !! pattern from Task 4's UserService.exists()
+}
+```
+
+- [ ] **Step 2: Create `CreateFollowDto`**
+
+Create `src/domain/social/follow/dto/create-follow.dto.ts`:
+```typescript
+import { IsEnum, IsUUID } from 'class-validator';
+
+export class CreateFollowDto {
+  @IsUUID()
+  targetId: string;
+
+  @IsEnum(['USER', 'ORGANIZATION', 'EVENT'])
+  targetType: string;
+}
+```
+
+- [ ] **Step 3: Create `FollowController`**
+
+Same controller pattern. Endpoints:
+
+```typescript
+@Controller()
+export class FollowController {
+  constructor(private followService: FollowService) {}
+
+  @Post('follows')
+  follow(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateFollowDto) {
+    return this.followService.follow(user.userId, dto.targetId, dto.targetType);
+  }
+
+  @Delete('follows/:id')
+  unfollow(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.followService.unfollow(id, user.userId);
+  }
+
+  @Get('users/:id/following')
+  listFollowing(@Param('id') id: string, @Query('cursor') cursor?: string) {
+    return this.followService.listFollowing(id, cursor);
+  }
+
+  @Get('users/:id/followers')
+  listUserFollowers(@Param('id') id: string, @Query('cursor') cursor?: string) {
+    return this.followService.listFollowers(id, 'USER', cursor);
+  }
+
+  @Get('organizations/:id/followers')
+  listOrgFollowers(@Param('id') id: string, @Query('cursor') cursor?: string) {
+    return this.followService.listFollowers(id, 'ORGANIZATION', cursor);
+  }
+
+  @Get('events/:id/followers')
+  listEventFollowers(@Param('id') id: string, @Query('cursor') cursor?: string) {
+    return this.followService.listFollowers(id, 'EVENT', cursor);
+  }
+}
+```
+
+- [ ] **Step 4: Create `FollowModule` and `SocialContextModule` (barrel)**
+
+The `FollowModule` imports ALL three context barrel modules — this is the **importing multiple barrel modules** pattern:
+
+```typescript
+@Module({
+  imports: [
+    IdentityModule,                // For UserService.exists()
+    OrganizationContextModule,     // For OrganizationService.exists()
+    EventContextModule,            // For EventService.exists()
+  ],
+  controllers: [FollowController],
+  providers: [FollowService],
+  exports: [FollowService],
+})
+export class FollowModule {}
+```
+
+```
+Dart comparison:
+// Like a provider that depends on other providers:
+final followProvider = Provider((ref) {
+  final userRepo = ref.read(userRepoProvider);
+  final orgRepo = ref.read(orgRepoProvider);
+  final eventRepo = ref.read(eventRepoProvider);
+  return FollowService(userRepo, orgRepo, eventRepo);
+});
+// Each imported module makes its exported services available for injection.
+```
+
+`SocialContextModule`:
+```typescript
+@Module({
+  imports: [FollowModule],
+  exports: [FollowModule],
+})
+export class SocialContextModule {}
+```
+
+- [ ] **Step 5: Wire into AppModule**
+
+Import `SocialContextModule` in `app.module.ts`.
+
+- [ ] **Step 6: Verify it compiles**
+
+```bash
+npm run start:dev
+```
+
+Expected: compiles with 0 errors.
+
+- [ ] **Step 7: Write `FollowService` unit tests**
+
+Create `src/domain/social/follow/follow.service.spec.ts`.
+
+Same testing pattern. Mock all four dependencies:
+
+```typescript
+describe('FollowService', () => {
+  let service: FollowService;
+
+  const mockFollow = {
+    id: 'follow-123',
+    followerId: 'user-123',
+    targetId: 'user-456',
+    targetType: 'USER',
+  };
+
+  const mockPrisma = {
+    follow: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  const mockUserService = { exists: jest.fn() };
+  const mockOrgService = { exists: jest.fn() };
+  const mockEventService = { exists: jest.fn() };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FollowService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: UserService, useValue: mockUserService },
+        { provide: OrganizationService, useValue: mockOrgService },
+        { provide: EventService, useValue: mockEventService },
+      ],
+    }).compile();
+
+    service = module.get<FollowService>(FollowService);
+    jest.clearAllMocks();
+  });
+
+  describe('follow', () => {
+    it('should create follow for existing user target', async () => {
+      mockUserService.exists.mockResolvedValue(true);
+      mockPrisma.follow.create.mockResolvedValue(mockFollow);
+
+      const result = await service.follow('user-123', 'user-456', 'USER');
+
+      expect(result).toEqual(mockFollow);
+      expect(mockUserService.exists).toHaveBeenCalledWith('user-456');
+    });
+
+    it('should throw BadRequestException when following yourself', async () => {
+      await expect(
+        service.follow('user-123', 'user-123', 'USER'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    // NOW YOU WRITE THESE:
+
+    // Test: creates follow for ORGANIZATION target
+    //   Hint: mockOrgService.exists.mockResolvedValue(true)
+
+    // Test: creates follow for EVENT target
+    //   Hint: mockEventService.exists.mockResolvedValue(true)
+
+    // Test: throws NotFoundException if target doesn't exist
+    //   Hint: mockUserService.exists.mockResolvedValue(false)
+
+    // Test: throws ConflictException on duplicate follow
+    //   Hint: same Prisma P2002 pattern from Task 9
+  });
+
+  describe('unfollow', () => {
+    // Test: deletes follow successfully
+    // Test: throws ForbiddenException if userId doesn't match followerId
+  });
+
+  describe('isFollowing', () => {
+    // Test: returns true when follow exists
+    // Test: returns false when follow doesn't exist
+  });
+});
+```
+
+Run: `npx jest src/domain/social/follow/`
+Expected: ALL PASS
+
+- [ ] **Step 8: Write E2E tests**
+
+Same E2E pattern. Create `test/e2e/follow.e2e-spec.ts`:
+
+Setup: register two users, create an org, create an event. Then:
+- Follow a user (201)
+- Follow an org (201)
+- Follow an event (201)
 - Try following yourself (should 400)
 - Try duplicate follow (should 409)
+- List following for user
+- List followers for user/org/event
 - Unfollow
 - Try unfollowing someone else's follow (should 403)
-- List following/followers with pagination
 - Follow non-existent target (should 404)
 
 Run: `npx jest test/e2e/follow.e2e-spec.ts`
 Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add -A
@@ -1630,12 +3522,18 @@ git commit -m "feat: add Follow module (polymorphic follows, target validation, 
 
 ## Task 11: Health Check & Final Integration
 
-**Goal:** Add health check endpoint, run full E2E suite, verify everything works together.
+> **New concepts in this task:**
+> - **`@nestjs/terminus`** = NestJS's health check library. It provides standard health check indicators for databases, memory, disk, and custom services. Like Flutter's `connectivity_plus` package but for server health — it tells load balancers and Kubernetes whether your server is healthy and ready to accept traffic.
+> - **`setGlobalPrefix` with `exclude`** = your API lives at `/api/v1/...`, but the health check endpoint should live at `/health` (not `/api/v1/health`). The `exclude` option lets specific routes skip the global prefix. This is standard for infrastructure endpoints that monitoring tools expect at a fixed path.
+
+**Goal:** Add health check endpoint, set up isolated test infrastructure, run full E2E suite, verify everything works together.
 
 **Files:**
-- Modify: `src/app.module.ts` — add TerminusModule for health checks
+- Modify: `src/main.ts` — update `setGlobalPrefix` to exclude health
+- Modify: `src/app.module.ts` — import HealthModule
 - Create: `src/health/health.controller.ts`
 - Create: `src/health/health.module.ts`
+- Create: `docker/docker-compose.test.yml`
 
 **Steps:**
 
@@ -1647,39 +3545,210 @@ npm install @nestjs/terminus
 
 - [ ] **Step 2: Create health check controller**
 
-- `GET /health` — `@Public()`, checks Prisma (DB) and Redis connectivity
-- Returns `{ status: 'ok', info: { database, redis }, uptime, version }`
-- **Important:** Exclude health from the global `/api/v1` prefix. Use `app.setGlobalPrefix('api/v1', { exclude: ['health'] })` in `main.ts` so the health endpoint lives at `/health` (not `/api/v1/health`). This is standard for K8s probes.
+Create `src/health/health.controller.ts`.
 
-- [ ] **Step 3: Create `HealthModule` and wire into AppModule**
+This introduces the **`@nestjs/terminus` health check pattern**:
 
-- [ ] **Step 4: Create `docker/docker-compose.test.yml`**
+```typescript
+import { Controller, Get } from '@nestjs/common';
+import { HealthCheck, HealthCheckService, HealthIndicatorResult } from '@nestjs/terminus';
+import { Public } from '../shared/decorators/public.decorator';
+import { PrismaService } from '../infrastructure/database/prisma.service';
+import { RedisService } from '../infrastructure/redis/redis.service';
 
-Separate compose file for E2E tests with isolated database:
-- `postgres-test` on port 5433, db name `runhop_test`
-- `redis-test` on port 6380
-- This prevents test runs from corrupting development data
+@Controller('health')
+export class HealthController {
+  constructor(
+    private health: HealthCheckService,
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
-Update E2E test setup to use `DATABASE_URL=postgresql://runhop:runhop@localhost:5433/runhop_test` and `REDIS_PORT=6380`.
+  @Public()     // Health checks must be accessible without auth
+  @Get()
+  @HealthCheck()
+  async check() {
+    return this.health.check([
+      // Each function in this array is a "health indicator."
+      // It runs a quick check and reports healthy/unhealthy.
 
-- [ ] **Step 5: Run the full E2E suite**
+      // Database health: run a simple query
+      async (): Promise<HealthIndicatorResult> => {
+        try {
+          await this.prisma.$queryRaw`SELECT 1`;
+          return { database: { status: 'up' } };
+        } catch {
+          return { database: { status: 'down' } };
+        }
+      },
+
+      // Redis health: ping the server
+      async (): Promise<HealthIndicatorResult> => {
+        try {
+          await this.redis.ping();   // You may need to add a ping() method to RedisService
+          return { redis: { status: 'up' } };
+        } catch {
+          return { redis: { status: 'down' } };
+        }
+      },
+    ]);
+  }
+}
+```
+
+```
+Dart comparison:
+// Like a Flutter health check screen that pings all your backends:
+class HealthCheckScreen extends StatefulWidget {
+  Future<Map<String, bool>> checkHealth() async {
+    return {
+      'database': await _tryPing(databaseUrl),
+      'redis': await _tryPing(redisUrl),
+      'api': await _tryPing(apiUrl),
+    };
+  }
+}
+// Terminus does the same thing but returns a standardized JSON response
+// that Kubernetes and monitoring tools understand.
+```
+
+The response looks like:
+```json
+{
+  "status": "ok",
+  "info": {
+    "database": { "status": "up" },
+    "redis": { "status": "up" }
+  }
+}
+```
+
+- [ ] **Step 3: Create `HealthModule`**
+
+Create `src/health/health.module.ts`:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { TerminusModule } from '@nestjs/terminus';
+import { HealthController } from './health.controller';
+
+@Module({
+  imports: [TerminusModule],
+  controllers: [HealthController],
+})
+export class HealthModule {}
+```
+
+Wire it into `app.module.ts` by adding `HealthModule` to the imports.
+
+- [ ] **Step 4: Update `main.ts` to exclude health from global prefix**
+
+In `src/main.ts`, update the `setGlobalPrefix` call to exclude the health endpoint:
+
+```typescript
+// BEFORE:
+app.setGlobalPrefix('api/v1');
+
+// AFTER:
+app.setGlobalPrefix('api/v1', {
+  exclude: ['health'],    // /health lives at the root, not /api/v1/health
+});
+```
+
+```
+Dart comparison:
+// Like configuring GoRouter routes — most routes go through '/app/...'
+// but '/health' is at the root:
+GoRouter(routes: [
+  GoRoute(path: '/health', builder: (_, __) => HealthScreen()),
+  ShellRoute(
+    path: '/app',
+    routes: [ /* all your app routes */ ],
+  ),
+]);
+```
+
+Why exclude health from the prefix? Kubernetes liveness/readiness probes, AWS ALB health checks, and monitoring tools all expect health endpoints at a fixed, short path like `/health` or `/healthz`. They don't know about your API versioning scheme.
+
+- [ ] **Step 5: Verify health check works**
+
+```bash
+npm run start:dev
+
+curl http://localhost:3000/health
+```
+
+Expected: `{ "status": "ok", "info": { "database": { "status": "up" }, "redis": { "status": "up" } } }`
+
+- [ ] **Step 6: Create `docker/docker-compose.test.yml`**
+
+This creates an isolated database and Redis for running E2E tests, so tests don't corrupt your development data:
+
+```yaml
+version: '3.8'
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: runhop_test
+      POSTGRES_USER: runhop
+      POSTGRES_PASSWORD: runhop
+    ports:
+      - '5433:5432'          # Different port from dev (5433 vs 5432)
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'          # Different port from dev (6380 vs 6379)
+```
+
+```
+Dart comparison:
+// Like having separate Firebase projects for dev vs test:
+// - Dev: my-app-dev (port 5432)
+// - Test: my-app-test (port 5433)
+// They share the same schema but different data.
+```
+
+Start the test infrastructure:
+```bash
+docker compose -f docker/docker-compose.test.yml up -d
+```
+
+Update your E2E test setup to use the test database. Create or update a `.env.test` file:
+```
+DATABASE_URL=postgresql://runhop:runhop@localhost:5433/runhop_test
+REDIS_HOST=localhost
+REDIS_PORT=6380
+```
+
+Run Prisma migrations against the test database:
+```bash
+DATABASE_URL=postgresql://runhop:runhop@localhost:5433/runhop_test npx prisma migrate deploy
+```
+
+- [ ] **Step 7: Run the full E2E suite**
 
 ```bash
 npx jest test/e2e/ --runInBand
 ```
 
-`--runInBand` runs tests serially (needed since they share a database).
+`--runInBand` runs tests one at a time instead of in parallel. This is necessary because E2E tests share a database — running them in parallel could cause flaky tests where one test's data interferes with another's.
+
 Expected: ALL tests pass.
 
-- [ ] **Step 6: Run linter**
+- [ ] **Step 8: Run linter**
 
 ```bash
 npm run lint
 ```
 
-Fix any issues.
+Fix any issues. Common ones at this stage:
+- Unused imports (remove them)
+- Missing return types on async functions
+- Inconsistent quotes (your `.prettierrc` should handle this)
 
-- [ ] **Step 7: Final commit**
+- [ ] **Step 9: Final commit**
 
 ```bash
 git add -A
