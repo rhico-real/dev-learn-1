@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RunHop Docs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Docsify theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+  <style>
+    :root {
+      --theme-color: #6366f1;
+      --sidebar-width: 280px;
+      --sidebar-nav-link-color--active: #6366f1;
+      --sidebar-nav-link-border-color--active: #6366f1;
+      --heading-h1-color: #1e1b4b;
+      --heading-h2-color: #312e81;
+      --code-inline-background: #f1f5f9;
+      --code-inline-color: #6366f1;
+      --blockquote-border-color: #6366f1;
+      --blockquote-background: #eef2ff;
+    }
+    .sidebar-nav > ul > li > a {
+      font-weight: 600;
+    }
+    .markdown-section {
+      max-width: 900px;
+    }
+    .markdown-section table {
+      display: table;
+      width: 100%;
+    }
+    .markdown-section blockquote {
+      border-radius: 6px;
+      padding: 12px 16px;
+    }
+    .markdown-section code {
+      border-radius: 4px;
+    }
+    /* Checkbox styling for task steps */
+    .markdown-section input[type="checkbox"] {
+      margin-right: 6px;
+      accent-color: #6366f1;
+      transform: scale(1.2);
+    }
+    /* Cover page styling */
+    .cover-main {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    window.$docsify = {
+      name: '🏃 RunHop Docs',
+      repo: '',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      search: {
+        placeholder: 'Search docs...',
+        noData: 'No results',
+        depth: 3,
+      },
+      coverpage: true,
+      themeColor: '#6366f1',
+      pagination: {
+        previousText: 'Previous',
+        nextText: 'Next',
+        crossChapter: true,
+      },
+      tabs: {
+        persist: true,
+        sync: false,
+      },
+    }
+  </script>
+  <!-- Docsify core -->
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+  <!-- Plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+  <!-- Syntax highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+</body>
+</html>
