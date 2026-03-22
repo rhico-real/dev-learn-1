@@ -4,66 +4,675 @@
   <meta charset="UTF-8">
   <title>RunHop Docs</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Docsify theme -->
+  <!-- Fonts: Plus Jakarta Sans (headings, closest to General Sans) + Inter (body) + JetBrains Mono (code) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Docsify theme (base) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+  <!-- Collapsible sidebar -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css">
   <style>
+    /* ══════════════════════════════════════
+       RunHop Learning Theme
+       Dark mode, warm accent colors,
+       designed for focus and retention
+       ══════════════════════════════════════ */
+
     :root {
-      --theme-color: #6366f1;
-      --sidebar-width: 280px;
-      --sidebar-nav-link-color--active: #6366f1;
-      --sidebar-nav-link-border-color--active: #6366f1;
-      --heading-h1-color: #1e1b4b;
-      --heading-h2-color: #312e81;
-      --code-inline-background: #f1f5f9;
-      --code-inline-color: #6366f1;
-      --blockquote-border-color: #6366f1;
-      --blockquote-background: #eef2ff;
+      /* ── Palette ── */
+      --bg-deep:     #0c0e14;
+      --bg-base:     #12141c;
+      --bg-surface:  #1a1d2b;
+      --bg-elevated: #222639;
+      --bg-hover:    #2a2f45;
+
+      --text-primary:   #eaedf3;
+      --text-secondary: #a0a6ba;
+      --text-muted:     #6b7189;
+
+      --accent:         #818cf8;  /* Indigo — primary */
+      --accent-bright:  #a5b4fc;
+      --accent-dim:     rgba(129, 140, 248, 0.12);
+
+      --green:    #34d399;  /* Success, hints */
+      --green-bg: rgba(52, 211, 153, 0.08);
+      --amber:    #fbbf24;  /* Warnings, important */
+      --amber-bg: rgba(251, 191, 36, 0.08);
+      --cyan:     #22d3ee;  /* Dart/Flutter analogies */
+      --cyan-bg:  rgba(34, 211, 238, 0.06);
+      --rose:     #fb7185;  /* Errors, critical */
+      --rose-bg:  rgba(251, 113, 133, 0.08);
+      --purple:   #c084fc;  /* New concepts */
+      --purple-bg: rgba(192, 132, 252, 0.08);
+
+      --border: #1e2235;
+      --border-light: #2a2f45;
+
+      /* ── Docsify theme vars ── */
+      --theme-color: var(--accent);
+      --base-background-color: var(--bg-base);
+      --base-color: var(--text-primary);
+
+      /* Sidebar */
+      --sidebar-background: var(--bg-deep);
+      --sidebar-width: 310px;
+      --sidebar-border-color: var(--border);
+      --sidebar-name-color: var(--text-primary);
+      --sidebar-name-font-weight: 800;
+      --sidebar-nav-link-color: var(--text-muted);
+      --sidebar-nav-link-color--active: var(--accent);
+      --sidebar-nav-link-color--hover: var(--accent-bright);
+      --sidebar-nav-link-border-color: transparent;
+      --sidebar-nav-link-border-color--active: var(--accent);
+      --sidebar-nav-link-border-width: 2px;
+      --sidebar-nav-link-font-weight: 400;
+      --sidebar-nav-link-font-weight--active: 600;
+      --sidebar-nav-pagelink-padding: 0.25em 0;
+      --sidebar-nav-indent: 18px;
+
+      /* Content */
+      --content-max-width: 880px;
+
+      /* Headings — using docsify-themeable vars */
+      --heading-color: var(--text-primary);
+      --heading-h1-color: var(--text-primary);
+      --heading-h2-color: var(--text-primary);
+      --heading-h2-border-color: var(--border);
+      --heading-h3-color: var(--text-secondary);
+      --heading-h4-color: var(--text-muted);
+      --heading-h1-font-weight: 800;
+      --heading-h2-font-weight: 700;
+      --heading-h3-font-weight: 600;
+
+      /* Code */
+      --code-font-size: 0.85em;
+      --code-inline-background: var(--bg-elevated);
+      --code-inline-color: var(--accent-bright);
+      --code-inline-border-radius: 5px;
+      --code-inline-padding: 0.15em 0.45em;
+      --code-block-border-radius: 10px;
+      --code-theme-background: var(--bg-deep);
+      --code-theme-text: #e6edf3;
+
+      /* Links */
+      --link-color: var(--accent);
+      --link-color--hover: var(--accent-bright);
+      --link-text-decoration: none;
+      --link-text-decoration--hover: underline;
+
+      /* Blockquotes */
+      --blockquote-border-color: var(--accent);
+      --blockquote-background: var(--accent-dim);
+      --blockquote-border-width: 3px;
+
+      /* Tables */
+      --table-head-background: var(--bg-surface);
+      --table-head-color: var(--text-primary);
+      --table-body-border-color: var(--border);
+      --table-row-odd-background: rgba(26, 29, 43, 0.6);
+      --table-row-even-background: transparent;
+      --table-cell-border-color: var(--border);
+
+      /* Search */
+      --search-background: var(--bg-surface);
+      --search-color: var(--text-primary);
+      --search-input-background-color: var(--bg-base);
+      --search-input-color: var(--text-primary);
+      --search-input-placeholder-color: var(--text-muted);
+      --search-result-keyword-background: var(--accent-dim);
+      --search-result-keyword-color: var(--accent-bright);
+
+      /* Pagination */
+      --pagination-border-color: var(--border);
+      --pagination-title-color: var(--text-primary);
+      --pagination-label-color: var(--text-muted);
+
+      /* Cover */
+      --cover-background-color: var(--bg-deep);
+
+      /* Misc */
+      --hr-border: 1px solid var(--border);
     }
+
+    /* ══════════════════════════════════════
+       BASE TYPOGRAPHY
+       ══════════════════════════════════════ */
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-color: var(--bg-base);
+      letter-spacing: -0.01em;
+    }
+
+    /* ══════════════════════════════════════
+       SIDEBAR — Clean navigation hierarchy
+       ══════════════════════════════════════ */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .app-name-link {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      font-size: 1.15em !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.02em;
+    }
+    /* Section labels (Getting Started, Implementation Plan, etc.) */
     .sidebar-nav > ul > li > a {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.7em;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted) !important;
+      margin-top: 14px;
+      display: block;
+    }
+
+    /* Task-level links (h2) — BIG, bold, clearly the main items */
+    .sidebar-nav > ul > li > ul > li > a {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.92em;
+      color: var(--text-secondary) !important;
+      padding: 6px 0;
+      display: block;
+    }
+    .sidebar-nav > ul > li > ul > li > a:hover {
+      color: var(--text-primary) !important;
+    }
+    .sidebar-nav > ul > li > ul > li > a.active {
+      color: var(--accent) !important;
+    }
+
+    /* Step-level links (h3) — small, muted, clearly subordinate */
+    .sidebar-nav > ul > li > ul > li > ul {
+      border-left: 1px solid var(--border-light);
+      margin-left: 8px;
+      padding-left: 12px;
+    }
+    .sidebar-nav > ul > li > ul > li > ul > li > a {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.74em;
+      font-weight: 400;
+      color: var(--text-muted) !important;
+      padding: 2px 0;
+      display: block;
+    }
+    .sidebar-nav > ul > li > ul > li > ul > li > a:hover {
+      color: var(--text-secondary) !important;
+    }
+    .sidebar-nav > ul > li > ul > li > ul > li > a.active {
+      color: var(--accent-bright) !important;
+      font-weight: 500;
+    }
+
+    .sidebar-nav li {
+      line-height: 1.55;
+    }
+
+    /* Collapse arrow styling */
+    .sidebar-nav .app-sub-sidebar {
+      padding-left: 0;
+    }
+    /* Make the toggle arrows match the theme */
+    .sidebar-nav li.collapse > a,
+    .sidebar-nav li.open > a {
+      cursor: pointer;
+    }
+    .sidebar-nav li.open > ul {
+      animation: slideDown 0.2s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════
+       CONTENT AREA — Readable, spacious
+       ══════════════════════════════════════ */
+    .markdown-section {
+      max-width: 880px;
+      color: var(--text-primary);
+      padding: 30px 45px 60px;
+    }
+    .markdown-section p,
+    .markdown-section li {
+      line-height: 1.8;
+      font-size: 0.94em;
+      color: var(--text-secondary);
+    }
+    .markdown-section strong {
+      color: var(--text-primary);
       font-weight: 600;
     }
-    .markdown-section {
-      max-width: 900px;
+    .markdown-section em {
+      color: var(--text-secondary);
+      font-style: italic;
     }
+    .markdown-section hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 48px 0;
+    }
+
+    /* ══════════════════════════════════════
+       HEADINGS — Clear visual hierarchy
+       Tasks are BIG, Steps are smaller
+       ══════════════════════════════════════ */
+    .markdown-section h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 2.2em;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      margin-top: 0;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    /* Task headings — prominent, eye-catching */
+    .markdown-section h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.65em;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-top: 56px;
+      margin-bottom: 20px;
+      padding: 18px 22px;
+      background: linear-gradient(135deg, var(--accent-dim), rgba(192, 132, 252, 0.06));
+      border-left: 4px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+    }
+
+    /* Step headings — clean, smaller, indented feel */
+    .markdown-section h3 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.1em;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--accent-bright);
+      margin-top: 40px;
+      margin-bottom: 12px;
+      padding: 10px 16px;
+      background: var(--bg-surface);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+    }
+
+    .markdown-section h4 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95em;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-top: 28px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ══════════════════════════════════════
+       CONCEPT BOXES (blockquotes)
+       The colored callouts for learning
+       ══════════════════════════════════════ */
+    .markdown-section blockquote {
+      border-radius: 0 10px 10px 0;
+      padding: 18px 22px;
+      margin: 24px 0;
+      background: linear-gradient(135deg, var(--purple-bg), var(--cyan-bg));
+      border-left: 3px solid var(--purple);
+    }
+    .markdown-section blockquote p {
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+    .markdown-section blockquote strong {
+      color: var(--purple);
+    }
+    .markdown-section blockquote code {
+      background: rgba(192, 132, 252, 0.12) !important;
+      color: var(--purple) !important;
+    }
+
+    /* ══════════════════════════════════════
+       TABLES — Clean data display
+       ══════════════════════════════════════ */
     .markdown-section table {
       display: table;
       width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin: 20px 0;
     }
-    .markdown-section blockquote {
-      border-radius: 6px;
+    .markdown-section th {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 600;
+      font-size: 0.8em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      background: var(--bg-surface);
       padding: 12px 16px;
     }
+    .markdown-section td {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.9em;
+    }
+    .markdown-section tr:hover td {
+      background: var(--bg-surface);
+    }
+
+    /* ══════════════════════════════════════
+       CODE — Dark, readable, distinct
+       ══════════════════════════════════════ */
+    .markdown-section pre {
+      background: var(--bg-deep) !important;
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    .markdown-section pre code {
+      font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.84em;
+      line-height: 1.7;
+      color: #e6edf3;
+    }
     .markdown-section code {
+      font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+      font-weight: 500;
+    }
+    /* Inline code */
+    .markdown-section :not(pre) > code {
+      padding: 0.15em 0.5em;
+      border-radius: 5px;
+      font-size: 0.85em;
+    }
+
+    /* ══════════════════════════════════════
+       CHECKBOXES — Interactive feel
+       ══════════════════════════════════════ */
+    .markdown-section input[type="checkbox"] {
+      margin-right: 8px;
+      accent-color: var(--green);
+      transform: scale(1.2);
+      cursor: pointer;
+    }
+    .markdown-section input[type="checkbox"]:checked + * {
+      color: var(--text-muted);
+    }
+
+    /* ══════════════════════════════════════
+       COPY CODE BUTTON
+       ══════════════════════════════════════ */
+    .docsify-copy-code-button {
+      background: var(--bg-elevated) !important;
+      color: var(--text-muted) !important;
+      border-radius: 6px !important;
+      font-family: 'Inter', sans-serif !important;
+      font-size: 0.72em !important;
+      padding: 4px 10px !important;
+      border: 1px solid var(--border) !important;
+    }
+    .docsify-copy-code-button:hover {
+      background: var(--bg-hover) !important;
+      color: var(--text-secondary) !important;
+    }
+
+    /* ══════════════════════════════════════
+       COVER PAGE
+       ══════════════════════════════════════ */
+    .cover-main {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4f46e5 60%, #818cf8 100%) !important;
+    }
+    .cover-main h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      font-weight: 800 !important;
+    }
+
+    /* ══════════════════════════════════════
+       SCROLLBAR — Subtle, minimal
+       ══════════════════════════════════════ */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-base);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-elevated);
       border-radius: 4px;
     }
-    /* Checkbox styling for task steps */
-    .markdown-section input[type="checkbox"] {
-      margin-right: 6px;
-      accent-color: #6366f1;
-      transform: scale(1.2);
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--bg-hover);
     }
-    /* Cover page styling */
-    .cover-main {
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+
+    /* ══════════════════════════════════════
+       SEARCH
+       ══════════════════════════════════════ */
+    .search input {
+      font-family: 'Inter', sans-serif !important;
+      background: var(--bg-surface) !important;
+      color: var(--text-primary) !important;
+      border: 1px solid var(--border-light) !important;
+      border-radius: 8px !important;
+      padding: 10px 14px !important;
+      font-size: 0.9em !important;
+    }
+    .search input:focus {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 3px var(--accent-dim) !important;
+    }
+    .search input::placeholder {
+      color: var(--text-muted) !important;
+    }
+    .search .matching-post {
+      border-bottom-color: var(--border) !important;
+    }
+    .search a {
+      color: var(--accent) !important;
+      font-weight: 500;
+    }
+    .search p {
+      color: var(--text-muted) !important;
+    }
+
+    /* ══════════════════════════════════════
+       PAGINATION
+       ══════════════════════════════════════ */
+    .pagination-item--previous a,
+    .pagination-item--next a {
+      color: var(--accent) !important;
+      font-weight: 500;
+    }
+    .pagination-item-label {
+      color: var(--text-muted) !important;
+      font-size: 0.8em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ══════════════════════════════════════
+       LISTS — Better spacing for readability
+       ══════════════════════════════════════ */
+    .markdown-section ul,
+    .markdown-section ol {
+      padding-left: 24px;
+    }
+    .markdown-section li {
+      margin-bottom: 6px;
+    }
+    .markdown-section li > ul,
+    .markdown-section li > ol {
+      margin-top: 6px;
+    }
+
+    /* ══════════════════════════════════════
+       SELECTION — Accent colored
+       ══════════════════════════════════════ */
+    ::selection {
+      background: rgba(129, 140, 248, 0.3);
+      color: var(--text-primary);
+    }
+
+    /* ══════════════════════════════════════
+       SMOOTH TRANSITIONS
+       ══════════════════════════════════════ */
+    a, .sidebar-nav a, .search input {
+      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    /* ══════════════════════════════════════
+       POMODORO TIMER
+       ══════════════════════════════════════ */
+    #pomodoro {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 8px 14px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    #pomodoro.work {
+      border-color: var(--accent);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--accent-dim);
+    }
+    #pomodoro.rest {
+      border-color: var(--green);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--green-bg);
+    }
+
+    #pomo-label {
+      font-size: 0.65em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    #pomodoro.work #pomo-label {
+      color: var(--accent-bright);
+      background: var(--accent-dim);
+    }
+    #pomodoro.rest #pomo-label {
+      color: var(--green);
+      background: var(--green-bg);
+    }
+
+    #pomo-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.2em;
+      font-weight: 500;
+      color: var(--text-primary);
+      min-width: 58px;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    #pomo-btns {
+      display: flex;
+      gap: 4px;
+    }
+    #pomo-btns button {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 0.85em;
+      line-height: 1;
+      transition: all 0.15s ease;
+    }
+    #pomo-btns button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--accent);
+    }
+    #pomo-btns button.active {
+      background: var(--accent-dim);
+      color: var(--accent-bright);
+      border-color: var(--accent);
+    }
+
+    #pomo-progress {
+      position: absolute;
+      bottom: 0;
+      left: 14px;
+      right: 14px;
+      height: 2px;
+      background: var(--bg-elevated);
+      border-radius: 0 0 12px 12px;
+      overflow: hidden;
+    }
+    #pomo-progress-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+    #pomodoro.work #pomo-progress-bar {
+      background: var(--accent);
+    }
+    #pomodoro.rest #pomo-progress-bar {
+      background: var(--green);
+    }
+
+    @media (max-width: 768px) {
+      #pomodoro {
+        top: auto;
+        bottom: 16px;
+        right: 12px;
+        padding: 6px 10px;
+      }
+      #pomo-time { font-size: 1em; }
     }
   </style>
 </head>
 <body>
+  <!-- Pomodoro Timer -->
+  <div id="pomodoro" class="work">
+    <span id="pomo-label">WORK</span>
+    <span id="pomo-time">25:00</span>
+    <div id="pomo-btns">
+      <button id="pomo-play" title="Play / Pause">▶</button>
+      <button id="pomo-reset" title="Reset">↺</button>
+      <button id="pomo-skip" title="Skip to rest / work">⏭</button>
+    </div>
+    <div id="pomo-progress"><div id="pomo-progress-bar" style="width:100%"></div></div>
+  </div>
+
   <div id="app"></div>
   <script>
     window.$docsify = {
-      name: '🏃 RunHop Docs',
+      name: 'RunHop Docs',
       repo: '',
       loadSidebar: true,
-      subMaxLevel: 3,
+      subMaxLevel: 4,
+      sidebarDisplayLevel: 1,
       auto2top: true,
       search: {
         placeholder: 'Search docs...',
         noData: 'No results',
-        depth: 3,
+        depth: 4,
       },
       coverpage: true,
-      themeColor: '#6366f1',
+      themeColor: '#818cf8',
       pagination: {
         previousText: 'Previous',
         nextText: 'Next',
@@ -81,11 +690,120 @@
   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
   <!-- Syntax highlighting -->
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-sql.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-prisma.min.js"></script>
+
+  <!-- Pomodoro Timer Logic -->
+  <script>
+  (function() {
+    const WORK_MIN = 25;
+    const REST_MIN = 5;
+
+    let isWork = true;
+    let totalSeconds = WORK_MIN * 60;
+    let remaining = totalSeconds;
+    let running = false;
+    let interval = null;
+
+    const el = {
+      root:     document.getElementById('pomodoro'),
+      label:    document.getElementById('pomo-label'),
+      time:     document.getElementById('pomo-time'),
+      play:     document.getElementById('pomo-play'),
+      reset:    document.getElementById('pomo-reset'),
+      skip:     document.getElementById('pomo-skip'),
+      progress: document.getElementById('pomo-progress-bar'),
+    };
+
+    function fmt(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function render() {
+      el.time.textContent = fmt(remaining);
+      el.label.textContent = isWork ? 'WORK' : 'REST';
+      el.root.className = isWork ? 'work' : 'rest';
+      el.play.textContent = running ? '⏸' : '▶';
+      el.play.classList.toggle('active', running);
+      el.progress.style.width = (remaining / totalSeconds * 100) + '%';
+    }
+
+    function beep() {
+      try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Play 3 short beeps
+        [0, 0.2, 0.4].forEach(function(delay) {
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = isWork ? 880 : 660;
+          osc.type = 'sine';
+          gain.gain.value = 0.3;
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + 0.12);
+        });
+      } catch(e) {}
+    }
+
+    function tick() {
+      remaining--;
+      if (remaining <= 0) {
+        stop();
+        beep();
+        // Auto-switch
+        isWork = !isWork;
+        totalSeconds = (isWork ? WORK_MIN : REST_MIN) * 60;
+        remaining = totalSeconds;
+        render();
+      } else {
+        render();
+      }
+    }
+
+    function start() {
+      if (running) return;
+      running = true;
+      interval = setInterval(tick, 1000);
+      render();
+    }
+
+    function stop() {
+      running = false;
+      clearInterval(interval);
+      interval = null;
+      render();
+    }
+
+    function resetTimer() {
+      stop();
+      totalSeconds = (isWork ? WORK_MIN : REST_MIN) * 60;
+      remaining = totalSeconds;
+      render();
+    }
+
+    function skipPhase() {
+      stop();
+      isWork = !isWork;
+      totalSeconds = (isWork ? WORK_MIN : REST_MIN) * 60;
+      remaining = totalSeconds;
+      render();
+    }
+
+    el.play.addEventListener('click', function() { running ? stop() : start(); });
+    el.reset.addEventListener('click', resetTimer);
+    el.skip.addEventListener('click', skipPhase);
+
+    render();
+  })();
+  </script>
 </body>
 </html>

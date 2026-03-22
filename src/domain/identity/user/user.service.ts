@@ -3,15 +3,15 @@ import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
-export class UserService{
-    constructor(private prisma: PrismaService) {}
+export class UserService {
+    constructor(private prisma: PrismaService) { }
 
-    private excludePassword(user: any){
-        const {password, ...userWithoutPassword} = user;
+    private excludePassword(user: any) {
+        const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     }
 
-    async create(data: any){
+    async create(data: any) {
         const passwordHash = await bcrypt.hash(data.password, 12);
 
         const user = await this.prisma.user.create({
@@ -25,7 +25,7 @@ export class UserService{
         return this.excludePassword(user);
     }
 
-    async findByEmail(email: string){
+    async findByEmail(email: string) {
         const user = await this.prisma.user.findUnique({
             where: {
                 email,
@@ -36,7 +36,7 @@ export class UserService{
         return user;
     }
 
-    async findById(id: string){
+    async findById(id: string) {
         const user = await this.prisma.user.findUnique({
             where: {
                 id,
@@ -44,14 +44,14 @@ export class UserService{
             }
         });
 
-        if(!user){
+        if (!user) {
             throw new NotFoundException('User not found');
         }
 
         return this.excludePassword(user);
     }
 
-    async exists(id: string){
+    async exists(id: string) {
         const user = await this.prisma.user.findUnique({
             where: {
                 id,
@@ -65,7 +65,7 @@ export class UserService{
         return !!user;
     }
 
-    async update(id: string, data: any){
+    async update(id: string, data: any) {
         const user = await this.prisma.user.update({
             where: {
                 id

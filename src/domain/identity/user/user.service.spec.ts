@@ -84,54 +84,91 @@ describe('UserService', () => {
   describe('findByEmail', () => {
     // Test: returns user (WITH password) when found
     it('should return user with password when found', async () => {
-        // Arrange
-        mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
-        // Act
-        const result = await service.findByEmail('test@test.com');
+      // Act
+      const result = await service.findByEmail('test@test.com');
 
-        // Assert
-        expect(result).toHaveProperty('password');
-        expect(result?.email).toBe('test@test.com');
+      // Assert
+      expect(result).toHaveProperty('password');
+      expect(result?.email).toBe('test@test.com');
     });
 
     // Test: returns null when not found
     it('should return null when user is not found', async () => {
-        // Arrange
-        mockPrisma.user.findUnique.mockResolvedValue(null);
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
-        // Act
-        const result = await service.findByEmail('notfound@test.com');
+      // Act
+      const result = await service.findByEmail('notfound@test.com');
 
-        // Assert
-        expect(result).toBe(null);
+      // Assert
+      expect(result).toBe(null);
     });
   });
 
   describe('exists', () => {
     // Test: returns true when user exists
     it('should return true when user exists', async () => {
-        // Arrange
-        mockPrisma.user.findUnique.mockResolvedValue({id: "someuniqueid"});
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "someuniqueid" });
 
-        // Act
-        const result = await service.exists('someuniqueid');
+      // Act
+      const result = await service.exists('someuniqueid');
 
-        // Assert
-        expect(result).toBe(true);
+      // Assert
+      expect(result).toBe(true);
     });
 
     // Test: returns false when user doesn't exist
-   it('it should ')
+    it('it should return false when user does not exist', async () => {
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      // Act
+      const result = await service.exists('notfound@test.com');
+
+      // Assert
+      expect(result).toBe(false);
+    });
   });
 
   describe('create', () => {
     // Test: calls prisma.user.create, returns user WITHOUT password
+    it('should create user and return it without password', async () => {
+      // Arrange
+      mockPrisma.user.create.mockResolvedValue(mockUser);
+
+      // Act
+      const result = await service.create({
+        email: 'test@test.com',
+        password: 'somepasswordhash',
+        displayName: 'mickeymouse'
+      });
+
+      // Assert
+      expect(result).not.toHaveProperty('password');
+      expect(result).toEqual({ ...mockUser, password: undefined });
+    });
+
     // Hint: mockPrisma.user.create.mockResolvedValue(mockUser)
     // Hint: check that result doesn't have 'password' property
   });
 
   describe('update', () => {
     // Test: calls prisma.user.update with correct args, returns user WITHOUT password
+    it('should update and return user without password', async () => {
+      // Arrange
+      mockPrisma.user.update.mockResolvedValue(mockUser);
+
+      // Act
+      const result = await service.update('someid', { displayName: 'newDisplayName' });
+
+      // Assert
+      expect(result).not.toHaveProperty('password');
+      expect(result).toEqual({ ...mockUser, password: undefined });
+    });
+
   });
 });

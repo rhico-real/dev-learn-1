@@ -8,3 +8,4 @@
 - **Learning Guides**
   - [Database Concepts](guides/database-concepts.md)
   - [System Design Concepts](guides/system-design-concepts.md)
+  - [Bounded Contexts & DDD](guides/bounded-contexts.md)

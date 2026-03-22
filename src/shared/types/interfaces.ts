@@ -6,12 +6,13 @@ export interface JwtPayload {
     jti: string
 }
 
-export interface AuthenticatedUser{
+export interface AuthenticatedUser {
     userId: string,
-    role: SystemRole
+    role: SystemRole,
+    jti: string
 }
 
-export interface PaginatedResponse<T>{
+export interface PaginatedResponse<T> {
     data: T[],
     meta: {
         cursor: string | null,

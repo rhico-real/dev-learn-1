@@ -7,8 +7,9 @@ export const CurrentUser = createParamDecorator(
         const user = request.user;
 
         return {
-            userId: user.sub,
-            role: user.role
+            userId: user.userId,
+            role: user.role,
+            jti: user.jti
         }
     }
 )

@@ -5,17 +5,19 @@ import { RedisModule } from './infrastructure/redis/redis.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { SharedModule } from './shared/shared.module';
+import { IdentityModule } from './domain/identity/identity.module';
 
 @Module({
   imports: [
-    AppConfigModule, 
-    DatabaseModule, 
-    RedisModule, 
+    AppConfigModule,
+    DatabaseModule,
+    RedisModule,
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 100
     }]),
-    SharedModule
+    SharedModule,
+    IdentityModule
   ],
   providers: [
     {
