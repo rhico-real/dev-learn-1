@@ -37,7 +37,7 @@ export class AuthController {
     //logout
     @Post('logout')
     @HttpCode(HttpStatus.OK)
-    logout(@CurrentUser() user: interfaces.AuthenticatedUser) {
-        this.authService.logout(user.jti, user.userId);
+    async logout(@CurrentUser() user: interfaces.AuthenticatedUser) {
+        await this.authService.logout(user.jti, user.userId);
     }
 }

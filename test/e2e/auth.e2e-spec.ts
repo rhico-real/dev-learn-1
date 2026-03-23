@@ -6,6 +6,7 @@ import request from 'supertest';
 describe('Auth (e2e)', () => {
     let app: INestApplication;
     let refreshToken: string;
+    let accessToken: string;
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -60,6 +61,7 @@ describe('Auth (e2e)', () => {
             })
             .expect(HttpStatus.OK)
             .expect((res) => {
+                accessToken = res.body.accessToken;
                 refreshToken = res.body.refreshToken;
 
                 expect(res.body.accessToken).toBeDefined();
@@ -85,8 +87,26 @@ describe('Auth (e2e)', () => {
             .send({
                 refreshToken: refreshToken
             })
-            .e
+            .expect(HttpStatus.OK)
+            .expect((res) => {
+                expect(res.body.accessToken).toBeDefined();
+                expect(res.body.refreshToken).toBeDefined();
+            })
     });
+
     // Test: POST /auth/logout — should blacklist access token
+    it('should blacklist access token upon logout', () => {
+        return request(app.getHttpServer())
+            .post('/api/v1/auth/logout')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .expect(HttpStatus.OK)
+    });
+
     // Test: After logout, using the old token should return 401
+    it('should return 401 when using the old token', () => {
+        return request(app.getHttpServer())
+            .post('/api/v1/auth/logout')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .expect(HttpStatus.UNAUTHORIZED)
+    });
 })
