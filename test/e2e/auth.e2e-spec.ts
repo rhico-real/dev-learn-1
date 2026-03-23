@@ -5,6 +5,7 @@ import request from 'supertest';
 
 describe('Auth (e2e)', () => {
     let app: INestApplication;
+    let refreshToken: string;
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -59,6 +60,8 @@ describe('Auth (e2e)', () => {
             })
             .expect(HttpStatus.OK)
             .expect((res) => {
+                refreshToken = res.body.refreshToken;
+
                 expect(res.body.accessToken).toBeDefined();
                 expect(res.body.refreshToken).toBeDefined()
             });
@@ -80,8 +83,9 @@ describe('Auth (e2e)', () => {
         return request(app.getHttpServer())
             .post('/api/v1/auth/refresh')
             .send({
-
+                refreshToken: refreshToken
             })
+            .e
     });
     // Test: POST /auth/logout — should blacklist access token
     // Test: After logout, using the old token should return 401
