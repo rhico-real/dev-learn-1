@@ -539,8 +539,9 @@
       right: 20px;
       z-index: 9999;
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
       background: var(--bg-surface);
       border: 1px solid var(--border-light);
       border-radius: 12px;
@@ -548,6 +549,11 @@
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
       font-family: 'Inter', sans-serif;
       user-select: none;
+    }
+    #pomo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     #pomodoro.work {
       border-color: var(--accent);
@@ -633,6 +639,105 @@
       background: var(--green);
     }
 
+    /* Session tracker (4 rounds) — below timer */
+    #pomo-sessions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border-light);
+    }
+    .pomo-dot {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      transition: all 0.4s ease;
+    }
+    .pomo-dot.done {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 6px var(--accent-dim);
+    }
+    .pomo-dot.active {
+      border-color: var(--accent-bright);
+      box-shadow: 0 0 8px var(--accent-dim);
+      animation: pomo-pulse 2s ease-in-out infinite;
+    }
+    @keyframes pomo-pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    #pomo-session-label {
+      font-size: 0.5em;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    /* Finished overlay */
+    #pomo-done-overlay {
+      display: none;
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 10000;
+      background: var(--bg-surface);
+      border: 1px solid var(--green);
+      border-radius: 12px;
+      padding: 14px 20px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--green-bg);
+      font-family: 'Inter', sans-serif;
+      text-align: center;
+      animation: pomo-fadeIn 0.5s ease;
+    }
+    #pomo-done-overlay.show { display: block; }
+    @keyframes pomo-fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    #pomo-done-overlay h3 {
+      margin: 0 0 4px;
+      font-size: 1em;
+      color: var(--green);
+    }
+    #pomo-done-overlay p {
+      margin: 0 0 10px;
+      font-size: 0.8em;
+      color: var(--text-muted);
+    }
+    #pomo-done-overlay .done-dots {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    #pomo-done-overlay .done-dots .pomo-dot {
+      background: var(--green);
+      border-color: var(--green);
+      box-shadow: 0 0 6px var(--green-bg);
+    }
+    #pomo-restart-btn {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 12px;
+      font-size: 0.75em;
+      transition: all 0.15s ease;
+    }
+    #pomo-restart-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--green);
+    }
+
     @media (max-width: 768px) {
       #pomodoro {
         top: auto;
@@ -641,20 +746,47 @@
         padding: 6px 10px;
       }
       #pomo-time { font-size: 1em; }
+      #pomo-done-overlay {
+        top: auto;
+        bottom: 16px;
+        right: 12px;
+      }
     }
   </style>
 </head>
 <body>
   <!-- Pomodoro Timer -->
   <div id="pomodoro" class="work">
-    <span id="pomo-label">WORK</span>
-    <span id="pomo-time">25:00</span>
-    <div id="pomo-btns">
-      <button id="pomo-play" title="Play / Pause">▶</button>
-      <button id="pomo-reset" title="Reset">↺</button>
-      <button id="pomo-skip" title="Skip to rest / work">⏭</button>
+    <div id="pomo-row">
+      <span id="pomo-label">WORK</span>
+      <span id="pomo-time">25:00</span>
+      <div id="pomo-btns">
+        <button id="pomo-play" title="Play / Pause">▶</button>
+        <button id="pomo-reset" title="Reset">↺</button>
+        <button id="pomo-skip" title="Skip to rest / work">⏭</button>
+      </div>
+    </div>
+    <div id="pomo-sessions">
+      <span id="pomo-session-label">SETS</span>
+      <div class="pomo-dot active" data-round="1"></div>
+      <div class="pomo-dot" data-round="2"></div>
+      <div class="pomo-dot" data-round="3"></div>
+      <div class="pomo-dot" data-round="4"></div>
     </div>
     <div id="pomo-progress"><div id="pomo-progress-bar" style="width:100%"></div></div>
+  </div>
+
+  <!-- Done for today overlay -->
+  <div id="pomo-done-overlay">
+    <h3>You're done for today!</h3>
+    <div class="done-dots">
+      <div class="pomo-dot done"></div>
+      <div class="pomo-dot done"></div>
+      <div class="pomo-dot done"></div>
+      <div class="pomo-dot done"></div>
+    </div>
+    <p>Great work. Come back tomorrow and keep learning.</p>
+    <button id="pomo-restart-btn">Reset Sessions</button>
   </div>
 
   <div id="app"></div>
@@ -704,12 +836,16 @@
   (function() {
     const WORK_MIN = 25;
     const REST_MIN = 5;
+    const TOTAL_ROUNDS = 4;
+    const STORAGE_KEY = 'pomo-sessions';
 
     let isWork = true;
     let totalSeconds = WORK_MIN * 60;
     let remaining = totalSeconds;
     let running = false;
     let interval = null;
+    let completedRounds = 0;
+    let dayFinished = false;
 
     const el = {
       root:     document.getElementById('pomodoro'),
@@ -719,7 +855,34 @@
       reset:    document.getElementById('pomo-reset'),
       skip:     document.getElementById('pomo-skip'),
       progress: document.getElementById('pomo-progress-bar'),
+      dots:     document.querySelectorAll('#pomo-sessions .pomo-dot'),
+      overlay:  document.getElementById('pomo-done-overlay'),
+      restart:  document.getElementById('pomo-restart-btn'),
     };
+
+    // Persist rounds per day using localStorage
+    function todayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function loadSession() {
+      try {
+        var data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (data && data.date === todayKey()) {
+          completedRounds = data.rounds;
+        } else {
+          completedRounds = 0;
+        }
+      } catch(e) { completedRounds = 0; }
+      if (completedRounds >= TOTAL_ROUNDS) dayFinished = true;
+    }
+
+    function saveSession() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        date: todayKey(),
+        rounds: completedRounds
+      }));
+    }
 
     function fmt(sec) {
       const m = Math.floor(sec / 60);
@@ -727,19 +890,40 @@
       return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
     }
 
+    function renderDots() {
+      el.dots.forEach(function(dot, i) {
+        dot.classList.remove('done', 'active');
+        if (i < completedRounds) {
+          dot.classList.add('done');
+        } else if (i === completedRounds && !dayFinished) {
+          dot.classList.add('active');
+        }
+      });
+    }
+
+    function showDoneOverlay() {
+      dayFinished = true;
+      stop();
+      el.root.style.display = 'none';
+      el.overlay.classList.add('show');
+    }
+
     function render() {
+      if (dayFinished) { showDoneOverlay(); return; }
+      el.root.style.display = 'flex';
+      el.overlay.classList.remove('show');
       el.time.textContent = fmt(remaining);
       el.label.textContent = isWork ? 'WORK' : 'REST';
       el.root.className = isWork ? 'work' : 'rest';
       el.play.textContent = running ? '⏸' : '▶';
       el.play.classList.toggle('active', running);
       el.progress.style.width = (remaining / totalSeconds * 100) + '%';
+      renderDots();
     }
 
     function beep() {
       try {
         var ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Play 3 short beeps
         [0, 0.2, 0.4].forEach(function(delay) {
           var osc = ctx.createOscillator();
           var gain = ctx.createGain();
@@ -759,6 +943,16 @@
       if (remaining <= 0) {
         stop();
         beep();
+        // If a work session just ended, count it
+        if (isWork) {
+          completedRounds++;
+          saveSession();
+          if (completedRounds >= TOTAL_ROUNDS) {
+            renderDots();
+            setTimeout(showDoneOverlay, 600);
+            return;
+          }
+        }
         // Auto-switch
         isWork = !isWork;
         totalSeconds = (isWork ? WORK_MIN : REST_MIN) * 60;
@@ -770,7 +964,7 @@
     }
 
     function start() {
-      if (running) return;
+      if (running || dayFinished) return;
       running = true;
       interval = setInterval(tick, 1000);
       render();
@@ -798,10 +992,25 @@
       render();
     }
 
+    function resetSessions() {
+      completedRounds = 0;
+      dayFinished = false;
+      isWork = true;
+      totalSeconds = WORK_MIN * 60;
+      remaining = totalSeconds;
+      running = false;
+      clearInterval(interval);
+      interval = null;
+      saveSession();
+      render();
+    }
+
     el.play.addEventListener('click', function() { running ? stop() : start(); });
     el.reset.addEventListener('click', resetTimer);
     el.skip.addEventListener('click', skipPhase);
+    el.restart.addEventListener('click', resetSessions);
 
+    loadSession();
     render();
   })();
   </script>
