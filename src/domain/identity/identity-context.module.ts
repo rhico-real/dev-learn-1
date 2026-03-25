@@ -6,4 +6,4 @@ import { UserModule } from "./user/user.module";
     imports: [AuthModule, UserModule],
     exports: [UserModule]
 })
-export class IdentityModule { }
+export class IdentityContextModule { }

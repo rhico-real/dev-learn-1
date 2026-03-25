@@ -5,7 +5,8 @@ import { RedisModule } from './infrastructure/redis/redis.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { SharedModule } from './shared/shared.module';
-import { IdentityModule } from './domain/identity/identity.module';
+import { IdentityContextModule } from './domain/identity/identity-context.module';
+import { OrganizationContextModule } from './domain/organization/organization-context.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { IdentityModule } from './domain/identity/identity.module';
       limit: 100
     }]),
     SharedModule,
-    IdentityModule
+    IdentityContextModule,
+    OrganizationContextModule
   ],
   providers: [
     {
@@ -26,6 +28,4 @@ import { IdentityModule } from './domain/identity/identity.module';
     }
   ]
 })
-export class AppModule {
-
-}
+export class AppModule { }
