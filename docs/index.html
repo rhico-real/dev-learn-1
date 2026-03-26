@@ -679,6 +679,21 @@
       letter-spacing: 0.05em;
       white-space: nowrap;
     }
+    #pomo-reset-sets {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.6em;
+      padding: 0 2px;
+      opacity: 0.4;
+      transition: opacity 0.15s ease, color 0.15s ease;
+      line-height: 1;
+    }
+    #pomo-reset-sets:hover {
+      opacity: 1;
+      color: var(--accent-bright);
+    }
 
     /* Finished overlay */
     #pomo-done-overlay {
@@ -772,6 +787,7 @@
       <div class="pomo-dot" data-round="2"></div>
       <div class="pomo-dot" data-round="3"></div>
       <div class="pomo-dot" data-round="4"></div>
+      <button id="pomo-reset-sets" title="Reset all sets">✕</button>
     </div>
     <div id="pomo-progress"><div id="pomo-progress-bar" style="width:100%"></div></div>
   </div>
@@ -858,6 +874,7 @@
       dots:     document.querySelectorAll('#pomo-sessions .pomo-dot'),
       overlay:  document.getElementById('pomo-done-overlay'),
       restart:  document.getElementById('pomo-restart-btn'),
+      resetSets: document.getElementById('pomo-reset-sets'),
     };
 
     // Persist rounds per day using localStorage
@@ -1009,6 +1026,7 @@
     el.reset.addEventListener('click', resetTimer);
     el.skip.addEventListener('click', skipPhase);
     el.restart.addEventListener('click', resetSessions);
+    el.resetSets.addEventListener('click', resetSessions);
 
     loadSession();
     render();
