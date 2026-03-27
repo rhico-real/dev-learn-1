@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { CurrentUser } from "src/shared/decorators/current-user.decorator";
-import * as interfaces from "src/shared/types/interfaces";
+import { CurrentUser } from "../../../shared/decorators/current-user.decorator";
+import * as interfaces from "../../../shared/types/interfaces";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { OrganizationService } from "./organization.service";
 import { UpdateOrganizationDto } from "./dto/update-organization.dto";
@@ -15,7 +15,10 @@ export class OrganizationController {
 
     // create
     @Post()
-    create(@CurrentUser() user: interfaces.AuthenticatedUser, @Body() dto: CreateOrganizationDto) {
+    create(
+        @CurrentUser() user: interfaces.AuthenticatedUser,
+        @Body() dto: CreateOrganizationDto
+    ) {
         return this.orgService.create(user.userId, dto);
     }
 
@@ -36,7 +39,7 @@ export class OrganizationController {
     async update(
         @CurrentUser() user: interfaces.AuthenticatedUser,
         @Param('id') id: string,
-        dto: UpdateOrganizationDto
+        @Body() dto: UpdateOrganizationDto
     ) {
         // Permission check: Only ADMIN can update
         await this.membershipService.verifyRole(user.userId, id, 'ADMIN');

@@ -82,10 +82,14 @@ One post per platform.
 - 4–6 hashtags at the bottom.
 
 ### dev.to
-- Title + tags frontmatter + article opener only (first 3–4 paragraphs).
+- **Full, complete article. Ready to copy-paste and publish.**
+- 800–1500 words. Title + tags frontmatter + full article body.
 - Lead with the interesting technical problem or decision from the day.
 - Frame it as part of a build-in-public series.
-- Leave a `[continue with...]` note for expansion.
+- Include real code snippets from the session — actual file names, actual code. The reader should be able to follow along.
+- Explain the *why* behind decisions, not just the *what*.
+- Structure with clear headings (##). Break up walls of text.
+- End with a takeaway or reflection — not a cliffhanger.
 - Tags: `nestjs`, `typescript`, `architecture`, `learninpublic` (adjust per topic).
 
 ### Substack

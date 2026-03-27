@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { UpdateOrganizationDto } from "./dto/update-organization.dto";
-import { PrismaService } from "src/infrastructure/database/prisma.service";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
 
 @Injectable()
 export class OrganizationService {

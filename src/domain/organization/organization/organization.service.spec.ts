@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { OrganizationService } from "./organization.service";
-import { PrismaService } from "src/infrastructure/database/prisma.service";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import { NotFoundException } from "@nestjs/common";
 
 describe('OrganizationService', () => {

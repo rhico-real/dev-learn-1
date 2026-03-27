@@ -1,6 +1,6 @@
 import { HttpStatus, INestApplication, ValidationPipe } from "@nestjs/common"
 import { Test, TestingModule } from "@nestjs/testing";
-import { AppModule } from "src/app.module";
+import { AppModule } from "../../src/app.module";
 import request from 'supertest';
 
 describe('Auth (e2e)', () => {
@@ -33,9 +33,9 @@ describe('Auth (e2e)', () => {
             })
             .expect(201)
             .expect((res) => {
-                expect(res.body.accessToken).toBeDefined();
-                expect(res.body.refreshToken).toBeDefined();
-                expect(res.body.user.email).toBe('e2e-test@test.com');
+                expect(res.body.data.accessToken).toBeDefined();
+                expect(res.body.data.refreshToken).toBeDefined();
+                expect(res.body.data.user.email).toBe('e2e-test@test.com');
             });
     });
 
@@ -61,11 +61,11 @@ describe('Auth (e2e)', () => {
             })
             .expect(HttpStatus.OK)
             .expect((res) => {
-                accessToken = res.body.accessToken;
-                refreshToken = res.body.refreshToken;
+                accessToken = res.body.data.accessToken;
+                refreshToken = res.body.data.refreshToken;
 
-                expect(res.body.accessToken).toBeDefined();
-                expect(res.body.refreshToken).toBeDefined()
+                expect(res.body.data.accessToken).toBeDefined();
+                expect(res.body.data.refreshToken).toBeDefined()
             });
     });
 
@@ -89,8 +89,8 @@ describe('Auth (e2e)', () => {
             })
             .expect(HttpStatus.OK)
             .expect((res) => {
-                expect(res.body.accessToken).toBeDefined();
-                expect(res.body.refreshToken).toBeDefined();
+                expect(res.body.data.accessToken).toBeDefined();
+                expect(res.body.data.refreshToken).toBeDefined();
             })
     });
 

@@ -1,11 +1,11 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { UserService } from "../user/user.service";
 import { JwtService } from "@nestjs/jwt";
-import { RedisService } from "src/infrastructure/redis/redis.service";
+import { RedisService } from "../../../infrastructure/redis/redis.service";
 import { ConfigService } from "@nestjs/config";
 import { v4 as uuid } from 'uuid';
 import { RegisterDto } from "./dto/register.dto";
-import { SystemRole } from "src/shared/types/enums";
+import { SystemRole } from "../../../shared/types/enums";
 import { LoginDto } from "./dto/login.dto";
 import * as bcrypt from 'bcrypt';
 import { RefreshTokenDto } from "./dto/refresh-token.dto";

@@ -12,3 +12,4 @@
 
 - **Additional Notes**
   - [HTTP Status Codes & Exceptions](guides/additional-notes.md)
+  - [Update Logs](guides/update-logs.md)

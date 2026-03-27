@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { OrgRole, Prisma } from "@prisma/client";
-import { UserService } from "src/domain/identity/user/user.service";
-import { PrismaService } from "src/infrastructure/database/prisma.service";
+import { UserService } from "../../identity/user/user.service";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
 
 const ROLE_HIERARCHY: Record<string, number> = {
     MEMBER: 1,
@@ -131,7 +131,7 @@ export class OrgMembershipService {
 
     async findByUserAndOrg(userId: string, orgId: string) {
         // returns a membership or null
-        // returns is SOMEONE is a member
+        // returns if SOMEONE is a member
         return await this.prismaService.orgMembership.findUnique({
             where: {
                 userId_orgId: { userId, orgId }

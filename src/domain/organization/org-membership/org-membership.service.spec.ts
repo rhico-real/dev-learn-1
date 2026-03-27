@@ -1,8 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { OrgMembershipService } from "./org-membership.service";
 import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "src/infrastructure/database/prisma.service";
-import { UserService } from "src/domain/identity/user/user.service";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
+import { UserService } from "../../identity/user/user.service";
 import { OrgRole, Prisma } from "@prisma/client";
 
 describe('OrgMembershipService', () => {
@@ -234,4 +234,21 @@ describe('OrgMembershipService', () => {
         });
     });
 
+    describe('findUserAndOrg', () => {
+        // test: return if user is a member
+        it('should return if user is a member', async () => {
+            mockPrisma.orgMembership.findUnique.mockResolvedValue(mockMembership);
+            const result = await service.findByUserAndOrg('some-user-id', 'some-org-id');
+
+            expect(result).toEqual(mockMembership);
+            expect(mockPrisma.orgMembership.findUnique).toHaveBeenCalledWith({
+                where: {
+                    userId_orgId: {
+                        userId: 'some-user-id',
+                        orgId: 'some-org-id'
+                    }
+                }
+            });
+        });
+    });
 });

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { OrgMembershipService } from "./org-membership.service";
-import { CurrentUser } from "src/shared/decorators/current-user.decorator";
-import * as interfaces from "src/shared/types/interfaces";
+import { CurrentUser } from "../../../shared/decorators/current-user.decorator";
+import * as interfaces from "../../../shared/types/interfaces";
 import { AddMemberDto } from "./dto/add-member.dto";
 import { UpdateRoleDto } from "./dto/update-role.dto";
 
@@ -24,6 +24,14 @@ export class OrgMembershipController {
         @Param('id') orgId: string
     ) {
         return this.orgMembershipService.listMembers(orgId);
+    }
+
+    @Get(':id/members/find')
+    findMember(
+        @CurrentUser() user: interfaces.AuthenticatedUser,
+        @Param('id') orgId: string
+    ) {
+        return this.orgMembershipService.findByUserAndOrg(user.userId, orgId);
     }
 
     @Patch(':id/members/:userId')

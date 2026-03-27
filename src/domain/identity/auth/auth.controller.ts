@@ -1,11 +1,11 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
-import { Public } from "src/shared/decorators/public.decorator";
+import { Public } from "../../../shared/decorators/public.decorator";
 import { RegisterDto } from "./dto/register.dto";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
-import { CurrentUser } from "src/shared/decorators/current-user.decorator";
-import * as interfaces from "src/shared/types/interfaces";
+import { CurrentUser } from "../../../shared/decorators/current-user.decorator";
+import * as interfaces from "../../../shared/types/interfaces";
 
 @Controller('auth')
 export class AuthController {
