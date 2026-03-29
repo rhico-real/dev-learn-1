@@ -5,6 +5,7 @@ import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { OrganizationService } from "./organization.service";
 import { UpdateOrganizationDto } from "./dto/update-organization.dto";
 import { OrgMembershipService } from "../org-membership/org-membership.service";
+import { PaginationQueryDTO } from "../../../shared/dto/pagination-query.dto";
 
 @Controller('organizations')
 export class OrganizationController {
@@ -24,8 +25,8 @@ export class OrganizationController {
 
     // list
     @Get()
-    list(@Query('cursor') cursor: string) {
-        return this.orgService.list(cursor);
+    list(@Query() dto: PaginationQueryDTO) {
+        return this.orgService.list(dto.cursor, dto.limit);
     }
 
     // find by slug

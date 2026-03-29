@@ -51,7 +51,15 @@ export class OrganizationService {
             args.cursor = { id: cursor }
         }
 
-        return this.prisma.organization.findMany(args);
+        const result = await this.prisma.organization.findMany(args);
+        const nextCursor = result.at(-1)?.id;
+
+        return {
+            data: result,
+            meta: {
+                cursor: nextCursor
+            }
+        }
     }
 
     // find by slug

@@ -230,7 +230,8 @@ describe('OrganizationService', () => {
                 where: { deletedAt: null },
                 orderBy: { createdAt: 'desc' }
             });
-            expect(result).toEqual([mockOrg])
+
+            expect(result).toEqual({ data: [mockOrg], meta: { cursor: mockOrg.id } });
         });
 
         // Test: returns orgs with cursor (verify skip: 1 and cursor are set)
@@ -247,7 +248,7 @@ describe('OrganizationService', () => {
                     id: 'cursor'
                 }
             });
-            expect(result).toEqual([mockOrg])
+            expect(result).toEqual({ data: [mockOrg], meta: { cursor: mockOrg.id } });
         });
 
     })

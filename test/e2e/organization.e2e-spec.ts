@@ -144,8 +144,67 @@ describe('Organization (e2e)', () => {
     });
 
     describe('List Org', () => {
-        it('List orgs with pagination', () => {
-            // incomplete. How do I even test cursor pagination
+        let listOrgs: Organization[] = [];
+        let cursorFromPageOne: string;
+
+        beforeAll(async () => {
+            for (let i = 0; i < 30; i++) {
+                await request(app.getHttpServer())
+                    .post('/api/v1/organizations')
+                    .set('Authorization', `Bearer ${accessToken}`)
+                    .send({
+                        name: `Test Org ${i}`,
+                        description: 'E2E testing org.'
+                    });
+            }
+        });
+
+        it('should return first page of orgs (no cursor)', async () => {
+            const result = await request(app.getHttpServer())
+                .get('/api/v1/organizations?limit=5')
+                .set('Authorization', `Bearer ${accessToken}`);
+
+            // this is page 1 data
+            listOrgs = result.body.data;
+            cursorFromPageOne = result.body.meta.cursor;
+
+            expect(result.statusCode).toBe(200);
+            expect(result.body.data.length).toBe(5);
+        });
+
+        it('should return NEXT page using cursor from last item of previous page', async () => {
+            const result = await request(app.getHttpServer())
+                .get(`/api/v1/organizations?cursor=${cursorFromPageOne}&limit=5`)
+                .set('Authorization', `Bearer ${accessToken}`);
+
+
+            // Check if all the items are not the same
+            const newList = result.body.data;
+
+            const bIds = new Set(newList.map(((item: Organization) => item.id)));
+            const same = listOrgs.length === newList.length && listOrgs.every((item: Organization) => bIds.has(item.id));
+
+            expect(same).toBe(false);
+            expect(result.body.data.length).toBe(5);
+        });
+
+        it('should return empty array when cursor is past the last item', async () => {
+            // use the very last item as cursor - nothing comes after it.
+            let lastCursor: string;
+
+            // 31 = 30(for this test) + 1(org-membership.e2e.spec test)
+            const test = await request(app.getHttpServer())
+                .get(`/api/v1/organizations?limit=31`)
+                .set('Authorization', `Bearer ${accessToken}`);
+
+            lastCursor = test.body.meta.cursor;
+
+
+            const result = await request(app.getHttpServer())
+                .get(`/api/v1/organizations?cursor=${lastCursor}`)
+                .set('Authorization', `Bearer ${accessToken}`);
+
+            expect(result.body.data.length).toBe(0);
         });
     });
 });
