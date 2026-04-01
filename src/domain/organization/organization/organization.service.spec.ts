@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { OrganizationService } from "./organization.service";
 import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import { NotFoundException } from "@nestjs/common";
+import { GenerateSlugService } from "../../../common/generate-slug.service";
 
 describe('OrganizationService', () => {
     let service: OrganizationService
@@ -32,11 +33,16 @@ describe('OrganizationService', () => {
         $transaction: jest.fn().mockImplementation((callback) => callback(mockPrisma))
     }
 
+    const mockGenerateSlug = {
+        generateSlug: jest.fn()
+    }
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 OrganizationService,
-                { provide: PrismaService, useValue: mockPrisma }
+                { provide: PrismaService, useValue: mockPrisma },
+                { provide: GenerateSlugService, useValue: mockGenerateSlug },
             ]
         }).compile();
 
@@ -51,6 +57,7 @@ describe('OrganizationService', () => {
             // Arrange
             mockPrisma.organization.create.mockResolvedValue(mockOrg);
             mockPrisma.orgMembership.create.mockResolvedValue(mockOrgMembership);
+            mockGenerateSlug.generateSlug.mockReturnValue('manila-runners-club');
 
             // Act
             const result = await service.create('some-user-id', { name: 'Manila Runners Club', description: 'some-description' });

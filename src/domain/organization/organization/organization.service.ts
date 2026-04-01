@@ -3,20 +3,17 @@ import { Prisma } from "@prisma/client";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { UpdateOrganizationDto } from "./dto/update-organization.dto";
 import { PrismaService } from "../../../infrastructure/database/prisma.service";
+import { randomUUID } from 'crypto';
+import { GenerateSlugService } from "../../../common/generate-slug.service";
 
 @Injectable()
 export class OrganizationService {
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService, private generateSlug: GenerateSlugService) { }
 
-    private generateSlug(name: string): string {
-        return name
-            .toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[^a-z0-9-]/g, '')
-    }
+
 
     async create(userId: string, dto: CreateOrganizationDto) {
-        const slug = this.generateSlug(dto.name);
+        const slug = this.generateSlug.generateSlug(dto.name);
 
         return this.prisma.$transaction(async (tx) => {
             const org = await tx.organization.create({
