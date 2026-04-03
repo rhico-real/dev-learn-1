@@ -9,6 +9,7 @@ import { IdentityContextModule } from './domain/identity/identity-context.module
 import { OrganizationContextModule } from './domain/organization/organization-context.module';
 import { CommonModule } from './common/common.module';
 import { EventModule } from './domain/event/event/event.module';
+import { RaceModule } from './domain/event/race/race.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { EventModule } from './domain/event/event/event.module';
     IdentityContextModule,
     OrganizationContextModule,
     CommonModule,
-    EventModule
+    EventModule,
+    RaceModule
   ],
   providers: [
     {

@@ -190,21 +190,28 @@ describe('Organization (e2e)', () => {
 
         it('should return empty array when cursor is past the last item', async () => {
             // use the very last item as cursor - nothing comes after it.
-            let lastCursor: string;
+            const limit = 5;
+            let cursor: string | undefined;
+            let lastNonEmptyCursor: string | undefined;
 
-            // 31 = 30(for this test) + 1(org-membership.e2e.spec test)
-            const test = await request(app.getHttpServer())
-                .get(`/api/v1/organizations?limit=31`)
+            while(true){
+                const res = await request(app.getHttpServer())
+                .get(`/api/v1/organizations?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`)
                 .set('Authorization', `Bearer ${accessToken}`);
 
-            lastCursor = test.body.meta.cursor;
+                if(res.body.data.length === 0){
+                    break;
+                }
 
+                lastNonEmptyCursor = res.body.meta.cursor;
+                cursor = lastNonEmptyCursor;
+            }
 
-            const result = await request(app.getHttpServer())
-                .get(`/api/v1/organizations?cursor=${lastCursor}`)
+            const final = await request(app.getHttpServer())
+                .get(`/api/v1/organizations?cursor=${lastNonEmptyCursor}`)
                 .set('Authorization', `Bearer ${accessToken}`);
 
-            expect(result.body.data.length).toBe(0);
+            expect(final.body.data.length).toBe(0)
         });
     });
 });
