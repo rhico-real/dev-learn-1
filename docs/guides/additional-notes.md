@@ -80,6 +80,9 @@ The global exception filter catches these and formats the response as:
 
 ### How to Visualize the Schema
 Every time you run `npx prisma generate`, a live Entity-Relationship Diagram (ERD) is updated at `docs/erd.svg`.
+
+![Entity Relationship Diagram](erd.svg)
+
 - **View ERD:** Open `docs/erd.svg` in your browser or any SVG viewer.
 - **Auto-Update:** This diagram syncs automatically with your `schema.prisma`.
 

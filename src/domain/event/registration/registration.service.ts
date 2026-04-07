@@ -77,6 +77,9 @@ export class RegistrationService {
         id: registrationId,
       },
     });
+
+    if (registration!.userId !== userId) {
+    }
   }
 
   /**
