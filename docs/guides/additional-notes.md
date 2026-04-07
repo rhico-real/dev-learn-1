@@ -73,3 +73,27 @@ The global exception filter catches these and formats the response as:
 ```
 
 > **Tip:** That `400 Bad Request` error you just saw? It was because of malformed JSON in the request body. The server couldn't even parse it — that's always a 400.
+
+---
+
+## Database Visualization & Relationships
+
+### How to Visualize the Schema
+Every time you run `npx prisma generate`, a live Entity-Relationship Diagram (ERD) is updated at `docs/erd.svg`.
+- **View ERD:** Open `docs/erd.svg` in your browser or any SVG viewer.
+- **Auto-Update:** This diagram syncs automatically with your `schema.prisma`.
+
+### Current Relationship Map (Quick Glance)
+- **User (1) <---> (N) OrgMembership <---> (1) Organization** (Many-to-Many via Join Table)
+- **Organization (1) <---> (N) Event** (One-to-Many)
+- **Event (1) <---> (N) Race** (One-to-Many)
+- **Race (1) <---> (N) Registration** (One-to-Many)
+- **User (1) <---> (N) Registration** (One-to-Many)
+- **User (1) <---> (N) Follow** (Self-referential/Polymorphic)
+
+### Key Architectural Notes
+- **Composite Unique Keys:** `Registration` uses `@@unique([userId, raceId])` to prevent duplicate entries.
+- **Indexes:** Frequent lookups like `orgId` on `Event` or `eventId` on `Race` are indexed for performance.
+
+## Prisma & Transactions
+In high-concurrency systems (like race registration), always wrap complex creation logic in a `this.prisma.$transaction()` to ensure all-or-nothing atomicity.
