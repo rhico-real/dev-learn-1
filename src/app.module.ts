@@ -8,30 +8,30 @@ import { SharedModule } from './shared/shared.module';
 import { IdentityContextModule } from './domain/identity/identity-context.module';
 import { OrganizationContextModule } from './domain/organization/organization-context.module';
 import { CommonModule } from './common/common.module';
-import { EventModule } from './domain/event/event/event.module';
-import { RaceModule } from './domain/event/race/race.module';
+import { EventContextModule } from './domain/event/event-context.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
     RedisModule,
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     SharedModule,
     IdentityContextModule,
     OrganizationContextModule,
     CommonModule,
-    EventModule,
-    RaceModule
+    EventContextModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard
-    }
-  ]
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
-export class AppModule { }
+export class AppModule {}

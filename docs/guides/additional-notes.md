@@ -45,7 +45,43 @@ Every API response includes a status code. Know what they mean so you can debug 
 >
 > **5xx = the server did something wrong.** Fix your code.
 
-### How to Use in NestJS
+---
+
+## Prisma Error Codes (P-Series)
+
+When Prisma encounters a database error, it throws a `PrismaClientKnownRequestError` with a specific code. Mapping these to the correct **NestJS Exception** is how you turn a `500 Internal Server Error` into a clean, helpful response for the user.
+
+| Error Code | Name | Meaning | Recommended NestJS Exception |
+|---|---|---|---|
+| `P2002` | Unique constraint failed | Trying to create something that already exists (e.g., duplicate email) | `ConflictException` |
+| `P2025` | Record to update not found | Trying to `update` or `delete` a record with an ID that doesn't exist | `NotFoundException` |
+| `P2003` | Foreign key constraint failed | Trying to link to a record (like a User) that doesn't exist | `BadRequestException` |
+| `P2014` | Required relation violation | Trying to delete a record that other records still depend on | `ConflictException` / `BadRequestException` |
+| `P2011` | Null constraint violation | Trying to save `null` into a field that is required in the DB | `BadRequestException` |
+
+### Pro Pattern: The One-Trip Update
+
+Instead of checking `findUnique` then `update` (2 trips), use a `try/catch` block for performance:
+
+```typescript
+async confirm(registrationId: string) {
+  try {
+    return await this.prisma.registration.update({
+      where: { id: registrationId },
+      data: { status: 'CONFIRMED' },
+    });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      throw new NotFoundException('Registration not found.');
+    }
+    throw error; // Let other unknown errors become 500s
+  }
+}
+```
+
+---
+
+## How to Use in NestJS
 
 When you throw an exception in a controller or service, NestJS automatically sends the right status code:
 
@@ -73,30 +109,3 @@ The global exception filter catches these and formats the response as:
 ```
 
 > **Tip:** That `400 Bad Request` error you just saw? It was because of malformed JSON in the request body. The server couldn't even parse it — that's always a 400.
-
----
-
-## Database Visualization & Relationships
-
-### How to Visualize the Schema
-Every time you run `npx prisma generate`, a live Entity-Relationship Diagram (ERD) is updated at `docs/erd.svg`.
-
-![Entity Relationship Diagram](erd.svg)
-
-- **View ERD:** Open `docs/erd.svg` in your browser or any SVG viewer.
-- **Auto-Update:** This diagram syncs automatically with your `schema.prisma`.
-
-### Current Relationship Map (Quick Glance)
-- **User (1) <---> (N) OrgMembership <---> (1) Organization** (Many-to-Many via Join Table)
-- **Organization (1) <---> (N) Event** (One-to-Many)
-- **Event (1) <---> (N) Race** (One-to-Many)
-- **Race (1) <---> (N) Registration** (One-to-Many)
-- **User (1) <---> (N) Registration** (One-to-Many)
-- **User (1) <---> (N) Follow** (Self-referential/Polymorphic)
-
-### Key Architectural Notes
-- **Composite Unique Keys:** `Registration` uses `@@unique([userId, raceId])` to prevent duplicate entries.
-- **Indexes:** Frequent lookups like `orgId` on `Event` or `eventId` on `Race` are indexed for performance.
-
-## Prisma & Transactions
-In high-concurrency systems (like race registration), always wrap complex creation logic in a `this.prisma.$transaction()` to ensure all-or-nothing atomicity.
