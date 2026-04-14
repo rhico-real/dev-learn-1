@@ -4,16 +4,18 @@
 
 ## Getting Started
 
-If you're building RunHop in order, follow the docs in this sequence:
+If you're building RunHop in order, start with the whole roadmap first, then move into the current phase.
 
-1. **Read the architecture first**
+1. **See the full picture**
+   - **[Roadmap Overview](guides/roadmap-overview.md)** — the complete project progression across all 4 phases, what each phase adds, and what each phase is meant to teach.
+2. **Read the architecture**
    - **[System Architecture Spec](superpowers/specs/2026-03-18-runhop-system-architecture-design.md)** — the blueprint for bounded contexts, entities, APIs, and infrastructure decisions.
-2. **Build the completed foundation**
+3. **Understand what is already done**
    - **[Phase 1 MVP Plan](superpowers/plans/2026-03-18-runhop-phase1-mvp.md)** — auth, users, organizations, events, races, registrations, and follows.
-3. **Move into the current social phase**
+4. **Move into the current phase**
    - **[Phase 2 Social Design](superpowers/specs/2026-04-14-runhop-phase2-social-design.md)** — what Phase 2 is for, what it includes, and what it intentionally avoids.
    - **[Phase 2 Social Plan](superpowers/plans/2026-04-14-runhop-phase2-social.md)** — the implementation path for posts, reactions, feed, and notifications.
-4. **Use the learning guides when you get stuck**
+5. **Use the learning guides when you get stuck**
    - Database concepts, system design concepts, DDD boundaries, and relationship diagrams are meant to support the phase plans.
 
 ## What's in here
@@ -21,6 +23,9 @@ If you're building RunHop in order, follow the docs in this sequence:
 ### Architecture
 - **[System Architecture Spec](superpowers/specs/2026-03-18-runhop-system-architecture-design.md)** — The blueprint. Bounded contexts, entity relationships, API endpoints, security, and infrastructure decisions.
 - **[Phase 2 Social Design](superpowers/specs/2026-04-14-runhop-phase2-social-design.md)** — The approved Phase 2 scope and boundaries for posts, reactions, feed, and notifications.
+
+### Roadmap
+- **[Roadmap Overview](guides/roadmap-overview.md)** — The whole picture. All 4 phases, what each phase adds, and how the project grows from MVP to scale.
 
 ### Implementation
 - **[Phase 1 MVP Plan](superpowers/plans/2026-03-18-runhop-phase1-mvp.md)** — Step-by-step guide to building RunHop. 11 tasks from project scaffolding to full integration. Written for a Flutter developer learning NestJS.
@@ -46,8 +51,8 @@ If you're building RunHop in order, follow the docs in this sequence:
 
 | Phase | What |
 |-------|------|
-| **Phase 1 (NOW)** | Auth, users, orgs, events, races, registration, follows |
-| **Phase 2** | Posts, feed, likes, comments, notifications |
+| **Phase 1** | Auth, users, orgs, events, races, registration, follows |
+| **Phase 2 (CURRENT)** | Posts, feed, likes, comments, notifications |
 | **Phase 3** | GCash/Maya payment |
 | **Phase 4** | BullMQ queues, caching, K8s deployment |
 

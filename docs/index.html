@@ -10,8 +10,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <!-- Docsify theme (base) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
-  <!-- Collapsible sidebar -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css">
   <style>
     /* ══════════════════════════════════════
        RunHop Learning Theme
@@ -153,6 +151,19 @@
       border-right: 1px solid var(--border);
       padding-top: 12px;
     }
+    .sidebar-nav ul,
+    .sidebar-nav li {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .sidebar-nav a::before,
+    .sidebar-nav a::after,
+    .sidebar-nav li::before,
+    .sidebar-nav li::after {
+      content: none !important;
+      display: none !important;
+    }
     .app-name-link {
       font-family: 'Plus Jakarta Sans', sans-serif !important;
       font-size: 1.15em !important;
@@ -163,22 +174,23 @@
     .sidebar-nav > ul > li > a {
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-weight: 700;
-      font-size: 0.7em;
+      font-size: 0.68em;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       color: var(--text-muted) !important;
-      margin-top: 14px;
+      margin-top: 16px;
       display: block;
     }
 
-    /* Task-level links (h2) — BIG, bold, clearly the main items */
+    /* Task-level links (h2) — primary items in the docs tree */
     .sidebar-nav > ul > li > ul > li > a {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 700;
-      font-size: 0.92em;
+      font-weight: 650;
+      font-size: 0.84em;
       color: var(--text-secondary) !important;
-      padding: 6px 0;
+      padding: 5px 0;
       display: block;
+      line-height: 1.4;
     }
     .sidebar-nav > ul > li > ul > li > a:hover {
       color: var(--text-primary) !important;
@@ -190,16 +202,18 @@
     /* Step-level links (h3) — small, muted, clearly subordinate */
     .sidebar-nav > ul > li > ul > li > ul {
       border-left: 1px solid var(--border-light);
-      margin-left: 8px;
+      margin-left: 10px;
+      margin-top: 4px;
       padding-left: 12px;
     }
     .sidebar-nav > ul > li > ul > li > ul > li > a {
       font-family: 'Inter', sans-serif;
-      font-size: 0.74em;
-      font-weight: 400;
+      font-size: 0.78em;
+      font-weight: 500;
       color: var(--text-muted) !important;
-      padding: 2px 0;
+      padding: 3px 0;
       display: block;
+      line-height: 1.35;
     }
     .sidebar-nav > ul > li > ul > li > ul > li > a:hover {
       color: var(--text-secondary) !important;
@@ -213,17 +227,8 @@
       line-height: 1.55;
     }
 
-    /* Collapse arrow styling */
     .sidebar-nav .app-sub-sidebar {
       padding-left: 0;
-    }
-    /* Make the toggle arrows match the theme */
-    .sidebar-nav li.collapse > a,
-    .sidebar-nav li.open > a {
-      cursor: pointer;
-    }
-    .sidebar-nav li.open > ul {
-      animation: slideDown 0.2s ease;
     }
     @keyframes slideDown {
       from { opacity: 0; transform: translateY(-4px); }
@@ -838,7 +843,6 @@
   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
   <!-- Syntax highlighting -->
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>

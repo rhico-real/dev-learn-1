@@ -1,5 +1,6 @@
 - **Getting Started**
   - [Home](/)
+  - [Roadmap Overview](guides/roadmap-overview.md)
   - [Architecture Spec](superpowers/specs/2026-03-18-runhop-system-architecture-design.md)
   - [Phase 2 Social Design](superpowers/specs/2026-04-14-runhop-phase2-social-design.md)
 
