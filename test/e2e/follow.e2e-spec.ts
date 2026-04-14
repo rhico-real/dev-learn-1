@@ -22,7 +22,7 @@ describe('Follow (e2e)', () => {
     // immediately deleted (test: unfollow)
     let testFollow: Follow;
 
-    let listNewAccounts: ResponseUser[] = [];
+    const listNewAccounts: ResponseUser[] = [];
 
     let testOrg: Organization;
     let testEvent: Event;

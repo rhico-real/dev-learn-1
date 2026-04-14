@@ -1,6 +1,14 @@
-import { IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from "class-validator";
+import {
+    IsInt,
+    IsNumber,
+    IsOptional,
+    IsString,
+    MaxLength,
+    Min,
+    MinLength,
+} from 'class-validator';
 
-export class CreateRaceDto{
+export class CreateRaceDto {
     @IsString()
     @MinLength(2)
     @MaxLength(100)
@@ -12,7 +20,7 @@ export class CreateRaceDto{
 
     @IsString()
     unit!: string;
-    
+
     @IsInt()
     @Min(1)
     maxParticipants!: number;
@@ -23,5 +31,5 @@ export class CreateRaceDto{
 
     @IsOptional()
     @IsString()
-    currency?: string = 'PHP'
+    currency?: string = 'PHP';
 }

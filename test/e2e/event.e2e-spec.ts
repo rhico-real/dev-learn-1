@@ -1,8 +1,8 @@
-import { INestApplication, ValidationPipe } from "@nestjs/common";
-import { Test, TestingModule } from "@nestjs/testing";
-import { AppModule } from "../../src/app.module";
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppModule } from '../../src/app.module';
 import request from 'supertest';
-import { Event } from "@prisma/client";
+import { Event } from '@prisma/client';
 
 describe('Event (e2e)', () => {
     let app: INestApplication;
@@ -10,18 +10,20 @@ describe('Event (e2e)', () => {
     let ownerAccessToken: string;
     let nonMemberAccessToken: string;
 
-    let orgId: string
+    let orgId: string;
 
     let event: Event;
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule]
+            imports: [AppModule],
         }).compile();
 
         app = moduleFixture.createNestApplication();
         app.setGlobalPrefix('api/v1');
-        app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+        app.useGlobalPipes(
+            new ValidationPipe({ whitelist: true, transform: true }),
+        );
         await app.init();
     });
 
@@ -44,7 +46,7 @@ describe('Event (e2e)', () => {
                 .send({
                     email: 'owner-event-test@test.org',
                     password: 'password123',
-                    displayName: 'Event test Owner'
+                    displayName: 'Event test Owner',
                 });
 
             ownerAccessToken = owner.body.data.accessToken;
@@ -55,7 +57,7 @@ describe('Event (e2e)', () => {
                 .send({
                     email: 'non-member-event-test@test.org',
                     password: 'password123',
-                    displayName: 'Event test Non Member'
+                    displayName: 'Event test Non Member',
                 });
 
             nonMemberAccessToken = nonmember.body.data.accessToken;
@@ -66,7 +68,7 @@ describe('Event (e2e)', () => {
                 .set('Authorization', `Bearer ${ownerAccessToken}`)
                 .send({
                     name: 'Event Test Org',
-                    description: 'Event E2E testing org.'
+                    description: 'Event E2E testing org.',
                 });
 
             orgId = org.body.data.id;
@@ -79,7 +81,7 @@ describe('Event (e2e)', () => {
                 .send({
                     name: 'Test Event',
                     startDate: '2026-06-01',
-                    endDate: '2026-06-02'
+                    endDate: '2026-06-02',
                 });
 
             event = result.body.data;
@@ -95,7 +97,7 @@ describe('Event (e2e)', () => {
                 .send({
                     name: 'Test Event 2',
                     startDate: '2026-06-01',
-                    endDate: '2026-06-02'
+                    endDate: '2026-06-02',
                 });
 
             expect(result.statusCode).toBe(403);
@@ -111,7 +113,7 @@ describe('Event (e2e)', () => {
 
             expect(result.statusCode).toBe(200);
             expect(result.body.data.slug).toBe(event.slug);
-        })
+        });
     });
 
     // update event
@@ -126,12 +128,12 @@ describe('Event (e2e)', () => {
                     location: 'updated-location',
                     bannerImage: 'updated-banner-image',
                     startDate: '2026-06-02',
-                    endDate: '2026-06-03'
+                    endDate: '2026-06-03',
                 });
 
             expect(result.statusCode).toBe(200);
             expect(result.body.data.name).toBe('Updated Event');
-        })
+        });
     });
 
     // update event status
@@ -145,7 +147,7 @@ describe('Event (e2e)', () => {
                 .patch(`/api/v1/events/${event.id}/status`)
                 .set('Authorization', `Bearer ${ownerAccessToken}`)
                 .send({
-                    status: 'CLOSED'
+                    status: 'CLOSED',
                 });
 
             expect(result.status).toBe(400);
@@ -156,7 +158,7 @@ describe('Event (e2e)', () => {
                 .patch(`/api/v1/events/${event.id}/status`)
                 .set('Authorization', `Bearer ${ownerAccessToken}`)
                 .send({
-                    status: 'PUBLISHED'
+                    status: 'PUBLISHED',
                 });
 
             expect(result.statusCode).toBe(200);
@@ -168,7 +170,7 @@ describe('Event (e2e)', () => {
                 .patch(`/api/v1/events/${event.id}/status`)
                 .set('Authorization', `Bearer ${ownerAccessToken}`)
                 .send({
-                    status: 'CLOSED'
+                    status: 'CLOSED',
                 });
 
             expect(result.statusCode).toBe(200);
@@ -180,7 +182,7 @@ describe('Event (e2e)', () => {
                 .patch(`/api/v1/events/${event.id}/status`)
                 .set('Authorization', `Bearer ${ownerAccessToken}`)
                 .send({
-                    status: 'COMPLETED'
+                    status: 'COMPLETED',
                 });
 
             expect(result.statusCode).toBe(200);
@@ -205,7 +207,7 @@ describe('Event (e2e)', () => {
                 .send({
                     name: 'Test Draft Event',
                     startDate: '2026-06-01',
-                    endDate: '2026-06-02'
+                    endDate: '2026-06-02',
                 });
 
             draftEvent = draft.body.data;
@@ -216,14 +218,14 @@ describe('Event (e2e)', () => {
                 .send({
                     name: 'Test Draft Event',
                     startDate: '2026-06-01',
-                    endDate: '2026-06-02'
+                    endDate: '2026-06-02',
                 });
 
             await request(app.getHttpServer())
                 .patch(`/api/v1/events/${published.body.data.id}/status`)
                 .set('Authorization', `Bearer ${ownerAccessToken}`)
                 .send({
-                    status: 'PUBLISHED'
+                    status: 'PUBLISHED',
                 });
 
             publishedEvent = published.body.data;
@@ -262,7 +264,7 @@ describe('Event (e2e)', () => {
                     .send({
                         name: `Test Draft Event ${i}`,
                         startDate: '2026-06-01',
-                        endDate: '2026-06-02'
+                        endDate: '2026-06-02',
                     });
 
                 // update status to publish immediately
@@ -270,7 +272,7 @@ describe('Event (e2e)', () => {
                     .patch(`/api/v1/events/${res.body.data.id}/status`)
                     .set('Authorization', `Bearer ${ownerAccessToken}`)
                     .send({
-                        status: 'PUBLISHED'
+                        status: 'PUBLISHED',
                     });
             }
         });
@@ -310,11 +312,13 @@ describe('Event (e2e)', () => {
             const newList = result.body.data;
 
             // compare so that there are no repeating events using cursor
-            const bIds = new Set(listEventsPageOne.map(((item: Event) => item.id)));
+            const bIds = new Set(
+                listEventsPageOne.map((item: Event) => item.id),
+            );
             const same = newList.some((item: Event) => bIds.has(item.id));
 
             expect(same).toBe(false);
             expect(newList.length).toBe(5);
         });
     });
-})
+});

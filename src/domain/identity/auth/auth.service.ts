@@ -1,14 +1,18 @@
-import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { UserService } from "../user/user.service";
-import { JwtService } from "@nestjs/jwt";
-import { RedisService } from "../../../infrastructure/redis/redis.service";
-import { ConfigService } from "@nestjs/config";
+import {
+    ConflictException,
+    Injectable,
+    UnauthorizedException,
+} from '@nestjs/common';
+import { UserService } from '../user/user.service';
+import { JwtService } from '@nestjs/jwt';
+import { RedisService } from '../../../infrastructure/redis/redis.service';
+import { ConfigService } from '@nestjs/config';
 import { v4 as uuid } from 'uuid';
-import { RegisterDto } from "./dto/register.dto";
-import { SystemRole } from "../../../shared/types/enums";
-import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from './dto/register.dto';
+import { SystemRole } from '../../../shared/types/enums';
+import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
-import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Injectable()
 export class AuthService {
@@ -16,20 +20,21 @@ export class AuthService {
         private userService: UserService,
         private jwtService: JwtService,
         private redisService: RedisService,
-        private configService: ConfigService
-    ) { }
+        private configService: ConfigService,
+    ) {}
 
     private async generateTokens(userId: string, role: string) {
         const jti = uuid();
 
-        const accessToken = this.jwtService.sign(
-            { sub: userId, role, jti }
-        );
+        const accessToken = this.jwtService.sign({ sub: userId, role, jti });
 
         const refreshTokenId = uuid();
 
         const refreshKey = `auth:refresh:${userId}:${refreshTokenId}`;
-        const refreshTtl = this.configService.get<number>('JWT_REFRESH_TTL', 604800); // 7 days
+        const refreshTtl = this.configService.get<number>(
+            'JWT_REFRESH_TTL',
+            604800,
+        ); // 7 days
         await this.redisService.setex(refreshKey, refreshTtl, 'valid');
 
         const refreshToken = `${userId}:${refreshTokenId}`;
@@ -80,7 +85,10 @@ export class AuthService {
         }
 
         // generate tokens
-        const tokens = await this.generateTokens(userResult.id, userResult.role);
+        const tokens = await this.generateTokens(
+            userResult.id,
+            userResult.role,
+        );
 
         // return tokens and user
         return { ...tokens, user: userResult };
@@ -121,5 +129,4 @@ export class AuthService {
         const patternKey = `auth:refresh:${userId}:*`;
         await this.redisService.delByPattern(patternKey);
     }
-
 }

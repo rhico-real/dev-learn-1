@@ -36,14 +36,14 @@ export class EnvironmentVariables {
     CORS_ORIGIN!: string;
 }
 
-export function validate(config: Record<string, unknown>){
+export function validate(config: Record<string, unknown>) {
     const validatedConfig = plainToInstance(EnvironmentVariables, config, {
-        enableImplicitConversion: true
+        enableImplicitConversion: true,
     });
 
     const errors = validateSync(validatedConfig);
 
-    if(errors.length > 0){
+    if (errors.length > 0) {
         throw new Error(`Config validation error: ${errors.toString()}`);
     }
 

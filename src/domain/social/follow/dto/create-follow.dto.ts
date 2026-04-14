@@ -1,5 +1,5 @@
 import { TargetType } from '@prisma/client';
-import { IsEnum, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsUUID } from 'class-validator';
 
 export class CreateFollowDto {
     @IsUUID()

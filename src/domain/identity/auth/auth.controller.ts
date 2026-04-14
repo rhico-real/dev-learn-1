@@ -1,15 +1,15 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
-import { Public } from "../../../shared/decorators/public.decorator";
-import { RegisterDto } from "./dto/register.dto";
-import { AuthService } from "./auth.service";
-import { LoginDto } from "./dto/login.dto";
-import { RefreshTokenDto } from "./dto/refresh-token.dto";
-import { CurrentUser } from "../../../shared/decorators/current-user.decorator";
-import * as interfaces from "../../../shared/types/interfaces";
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Public } from '../../../shared/decorators/public.decorator';
+import { RegisterDto } from './dto/register.dto';
+import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
+import * as interfaces from '../../../shared/types/interfaces';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private authService: AuthService) { }
+    constructor(private authService: AuthService) {}
 
     //register
     @Public()

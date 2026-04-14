@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsUUID } from "class-validator";
+import { IsIn, IsOptional, IsUUID } from 'class-validator';
 
 export class AddMemberDto {
     @IsUUID()
@@ -6,5 +6,5 @@ export class AddMemberDto {
 
     @IsOptional()
     @IsIn(['MEMBER', 'ADMIN'])
-    role?: string = 'MEMBER'
+    role?: string = 'MEMBER';
 }

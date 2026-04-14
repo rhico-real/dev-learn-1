@@ -1,22 +1,22 @@
-import { SystemRole } from "./enums";
+import { SystemRole } from './enums';
 
 export interface JwtPayload {
-    sub: string,
-    role: SystemRole,
-    jti: string
+    sub: string;
+    role: SystemRole;
+    jti: string;
 }
 
 export interface AuthenticatedUser {
-    userId: string,
-    role: SystemRole,
-    jti: string
+    userId: string;
+    role: SystemRole;
+    jti: string;
 }
 
 export interface PaginatedResponse<T> {
-    data: T[],
+    data: T[];
     meta: {
-        cursor: string | null,
-        hasMore: boolean,
-        limit: number
-    }
+        cursor: string | null;
+        hasMore: boolean;
+        limit: number;
+    };
 }

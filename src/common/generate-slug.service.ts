@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class GenerateSlugService {
@@ -7,7 +7,7 @@ export class GenerateSlugService {
         const res = name
             .toLowerCase()
             .replace(/\s+/g, '-')
-            .replace(/[^a-z0-9-]/g, '')
+            .replace(/[^a-z0-9-]/g, '');
 
         return `${res}-${randomUUID().slice(0, 8)}`;
     }

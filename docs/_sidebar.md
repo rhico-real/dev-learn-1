@@ -1,9 +1,11 @@
 - **Getting Started**
   - [Home](/)
   - [Architecture Spec](superpowers/specs/2026-03-18-runhop-system-architecture-design.md)
+  - [Phase 2 Social Design](superpowers/specs/2026-04-14-runhop-phase2-social-design.md)
 
 - **Implementation Plan**
   - [Phase 1 MVP Plan](superpowers/plans/2026-03-18-runhop-phase1-mvp.md)
+  - [Phase 2 Social Plan](superpowers/plans/2026-04-14-runhop-phase2-social.md)
 
 - **Learning Guides**
   - [Database Concepts](guides/database-concepts.md)

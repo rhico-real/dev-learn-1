@@ -1,13 +1,13 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { EventService } from "./event.service";
-import { PrismaService } from "../../../infrastructure/database/prisma.service";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
-import { GenerateSlugService } from "../../../common/generate-slug.service";
+import { Test, TestingModule } from '@nestjs/testing';
+import { EventService } from './event.service';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { GenerateSlugService } from '../../../common/generate-slug.service';
 
 describe('EventService', () => {
     let service: EventService;
 
-    let mockEventDraft = {
+    const mockEventDraft = {
         id: 'id-123',
         orgId: 'some-org-id',
         name: 'Test Event',
@@ -19,10 +19,10 @@ describe('EventService', () => {
         endDate: new Date('2026-06-01'),
         status: 'DRAFT',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
     };
 
-    let mockEventPublished = {
+    const mockEventPublished = {
         id: 'id-123',
         orgId: 'some-org-id',
         name: 'Test Event',
@@ -34,10 +34,10 @@ describe('EventService', () => {
         endDate: new Date('2026-06-01'),
         status: 'PUBLISHED',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
     };
 
-    let mockEventClosed = {
+    const mockEventClosed = {
         id: 'id-123',
         orgId: 'some-org-id',
         name: 'Test Event',
@@ -49,10 +49,10 @@ describe('EventService', () => {
         endDate: new Date('2026-06-01'),
         status: 'CLOSED',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
     };
 
-    let mockEventCompleted = {
+    const mockEventCompleted = {
         id: 'id-123',
         orgId: 'some-org-id',
         name: 'Test Event',
@@ -64,25 +64,25 @@ describe('EventService', () => {
         endDate: new Date('2026-06-01'),
         status: 'COMPLETED',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
     };
 
-    let mockPrisma = {
+    const mockPrisma = {
         event: {
             create: jest.fn(),
             findUnique: jest.fn(),
             update: jest.fn(),
             delete: jest.fn(),
-            findMany: jest.fn()
+            findMany: jest.fn(),
         },
         registration: {
-            count: jest.fn()
-        }
-    }
+            count: jest.fn(),
+        },
+    };
 
-    let mockGenerateSlug = {
-        generateSlug: jest.fn()
-    }
+    const mockGenerateSlug = {
+        generateSlug: jest.fn(),
+    };
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -90,7 +90,7 @@ describe('EventService', () => {
                 EventService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: GenerateSlugService, useValue: mockGenerateSlug },
-            ]
+            ],
         }).compile();
 
         service = module.get<EventService>(EventService);
@@ -119,46 +119,58 @@ describe('EventService', () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventDraft);
             mockPrisma.event.update.mockResolvedValue(mockEventPublished);
 
-            const result = await service.updateStatus('id-123', { status: 'PUBLISHED' });
+            const result = await service.updateStatus('id-123', {
+                status: 'PUBLISHED',
+            });
 
             expect(result).toEqual(mockEventPublished);
-            await expect(mockPrisma.event.update).toHaveBeenCalledWith({
+            expect(mockPrisma.event.update).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
+                    id: 'id-123',
                 },
                 data: {
-                    status: 'PUBLISHED'
-                }
+                    status: 'PUBLISHED',
+                },
             });
         });
 
         it('should throw BadRequest for DRAFT -> CLOSED (invalid transition)', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventDraft);
-            await expect(service.updateStatus('id-123', { status: 'CLOSED' })).rejects.toThrow(BadRequestException);
+            await expect(
+                service.updateStatus('id-123', { status: 'CLOSED' }),
+            ).rejects.toThrow(BadRequestException);
         });
 
         it('should allow PUBLISHED -> CLOSED', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventPublished);
             mockPrisma.event.update.mockResolvedValue(mockEventClosed);
 
-            const result = await service.updateStatus('id-123', { status: 'CLOSED' });
+            const result = await service.updateStatus('id-123', {
+                status: 'CLOSED',
+            });
             expect(result).toEqual(mockEventClosed);
-            await expect(mockPrisma.event.update).toHaveBeenCalledWith({
+            expect(mockPrisma.event.update).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
+                    id: 'id-123',
                 },
                 data: {
-                    status: 'CLOSED'
-                }
-            })
+                    status: 'CLOSED',
+                },
+            });
         });
 
         it('should throw BadRequestException if transitioning from COMPLETED to anything', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventCompleted);
 
-            await expect(service.updateStatus('id-123', { status: 'DRAFT' })).rejects.toThrow(BadRequestException);
-            await expect(service.updateStatus('id-123', { status: 'PUBLISHED' })).rejects.toThrow(BadRequestException);
-            await expect(service.updateStatus('id-123', { status: 'CLOSED' })).rejects.toThrow(BadRequestException);
+            await expect(
+                service.updateStatus('id-123', { status: 'DRAFT' }),
+            ).rejects.toThrow(BadRequestException);
+            await expect(
+                service.updateStatus('id-123', { status: 'PUBLISHED' }),
+            ).rejects.toThrow(BadRequestException);
+            await expect(
+                service.updateStatus('id-123', { status: 'CLOSED' }),
+            ).rejects.toThrow(BadRequestException);
         });
 
         it('should be allowed to update status if PUBLISHED -> DRAFT with 0 registrations', async () => {
@@ -166,23 +178,27 @@ describe('EventService', () => {
             mockPrisma.registration.count.mockResolvedValue(0);
             mockPrisma.event.update.mockResolvedValue(mockEventDraft);
 
-            const result = await service.updateStatus('id-123', { status: 'DRAFT' });
+            const result = await service.updateStatus('id-123', {
+                status: 'DRAFT',
+            });
             expect(result).toBe(mockEventDraft);
-            await expect(mockPrisma.event.update).toHaveBeenCalledWith({
+            expect(mockPrisma.event.update).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
+                    id: 'id-123',
                 },
                 data: {
-                    status: 'DRAFT'
-                }
-            })
+                    status: 'DRAFT',
+                },
+            });
         });
 
         it('should throw BadRequestException if PUBLISHED -> DRAFT with registrations', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventPublished);
             mockPrisma.registration.count.mockResolvedValue(1);
 
-            await expect(service.updateStatus('id-123', { status: 'DRAFT' })).rejects.toThrow(BadRequestException);
+            await expect(
+                service.updateStatus('id-123', { status: 'DRAFT' }),
+            ).rejects.toThrow(BadRequestException);
         });
     });
 
@@ -193,29 +209,35 @@ describe('EventService', () => {
 
             const result = await service.delete('id-123');
             expect(result).toBe(mockEventDraft);
-            await expect(mockPrisma.event.delete).toHaveBeenCalledWith({
+            expect(mockPrisma.event.delete).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
-                }
-            })
+                    id: 'id-123',
+                },
+            });
         });
 
         it('should return BadRequestException if deleting event status that is PUBLISHED', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventPublished);
 
-            await expect(service.delete('id-123')).rejects.toThrow(BadRequestException);
+            await expect(service.delete('id-123')).rejects.toThrow(
+                BadRequestException,
+            );
         });
 
         it('should return BadRequestException if deleting event status that is CLOSED', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventClosed);
 
-            await expect(service.delete('id-123')).rejects.toThrow(BadRequestException);
+            await expect(service.delete('id-123')).rejects.toThrow(
+                BadRequestException,
+            );
         });
 
         it('should return BadRequestException if deleting event status that is COMPLETED', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(mockEventCompleted);
 
-            await expect(service.delete('id-123')).rejects.toThrow(BadRequestException);
+            await expect(service.delete('id-123')).rejects.toThrow(
+                BadRequestException,
+            );
         });
     });
 
@@ -234,7 +256,7 @@ describe('EventService', () => {
             });
             expect(result.slug).toEqual('test-event');
             expect(result).toBe(mockEventDraft);
-            await expect(mockPrisma.event.create).toHaveBeenCalledWith({
+            expect(mockPrisma.event.create).toHaveBeenCalledWith({
                 data: {
                     orgId: 'some-org-id',
                     slug: 'test-event',
@@ -244,8 +266,8 @@ describe('EventService', () => {
                     bannerImage: 'some-banner',
                     startDate: '2026-06-01T00:00:00.000Z',
                     endDate: '2026-06-02T00:00:00.000Z',
-                }
-            })
+                },
+            });
         });
     });
 
@@ -256,14 +278,16 @@ describe('EventService', () => {
             expect(result).toBe(mockEventDraft);
             expect(mockPrisma.event.findUnique).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
-                }
+                    id: 'id-123',
+                },
             });
         });
 
         it('should return NotFoundException if event is not found', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(null);
-            await expect(service.findById('id-123')).rejects.toThrow(NotFoundException);
+            await expect(service.findById('id-123')).rejects.toThrow(
+                NotFoundException,
+            );
         });
     });
 
@@ -274,14 +298,16 @@ describe('EventService', () => {
             expect(result).toBe(mockEventDraft);
             expect(mockPrisma.event.findUnique).toHaveBeenCalledWith({
                 where: {
-                    slug: 'test-event'
-                }
+                    slug: 'test-event',
+                },
             });
         });
 
         it('should return NotFoundException if event is not found', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(null);
-            await expect(service.findById('id-123')).rejects.toThrow(NotFoundException);
+            await expect(service.findById('id-123')).rejects.toThrow(
+                NotFoundException,
+            );
         });
     });
 
@@ -293,14 +319,16 @@ describe('EventService', () => {
 
             expect(mockPrisma.event.findUnique).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
-                }
+                    id: 'id-123',
+                },
             });
         });
 
         it('should return NotFoundExcetion if event is not found', async () => {
             mockPrisma.event.findUnique.mockResolvedValue(null);
-            await expect(service.exists('id-123')).rejects.toThrow(NotFoundException);
+            await expect(service.exists('id-123')).rejects.toThrow(
+                NotFoundException,
+            );
         });
     });
 
@@ -314,16 +342,15 @@ describe('EventService', () => {
             expect(result).toEqual({
                 data: [mockEventPublished],
                 meta: {
-                    cursor: 'id-123'
-                }
+                    cursor: 'id-123',
+                },
             });
             expect(mockPrisma.event.findMany).toHaveBeenCalledWith({
                 take: 20,
                 where: { status: 'PUBLISHED' },
-                orderBy: { startDate: 'asc' }
+                orderBy: { startDate: 'asc' },
             });
         });
-
 
         // test: returns published events with cursor -> verify skip 1 and cursor
         it('shouls return published events with cursor', async () => {
@@ -333,17 +360,16 @@ describe('EventService', () => {
             expect(result).toEqual({
                 data: [mockEventPublished],
                 meta: {
-                    cursor: 'id-123'
-                }
+                    cursor: 'id-123',
+                },
             });
             expect(mockPrisma.event.findMany).toHaveBeenCalledWith({
                 take: 20,
                 where: { status: 'PUBLISHED' },
                 orderBy: { startDate: 'asc' },
                 skip: 1,
-                cursor: { id: 'id-123' }
-            })
+                cursor: { id: 'id-123' },
+            });
         });
     });
-
 });

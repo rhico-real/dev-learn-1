@@ -1,9 +1,14 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common";
-import { Request, Response } from "express";
+import {
+    ArgumentsHost,
+    Catch,
+    ExceptionFilter,
+    HttpException,
+} from '@nestjs/common';
+import { Request, Response } from 'express';
 
 @Catch(HttpException)
-export class HttpExceptionFilter implements ExceptionFilter{
-    catch(exception: HttpException, host: ArgumentsHost){
+export class HttpExceptionFilter implements ExceptionFilter {
+    catch(exception: HttpException, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
         const request = ctx.getRequest<Request>();
         const response = ctx.getResponse<Response>();
@@ -11,18 +16,26 @@ export class HttpExceptionFilter implements ExceptionFilter{
         const status = exception.getStatus();
         const exceptionResponse = exception.getResponse();
 
-        const message = typeof exceptionResponse === 'object' ? (exceptionResponse as any).message : exceptionResponse;
+        const responseBody =
+            typeof exceptionResponse === 'object'
+                ? (exceptionResponse as Record<string, unknown>)
+                : {};
 
-        const errorResponse = {
+        const message =
+            typeof exceptionResponse === 'object'
+                ? responseBody.message
+                : exceptionResponse;
+
+        const errorResponse: Record<string, unknown> = {
             statusCode: status,
             message: message,
-            error: (exceptionResponse as any).error || 'Error',
+            error: (responseBody.error as string) || 'Error',
             timestamp: new Date().toISOString(),
-            path: request.url
+            path: request.url,
         };
 
-        if(process.env.NODE_ENV !== 'production'){
-            (errorResponse as any).stack = exception.stack;
+        if (process.env.NODE_ENV !== 'production') {
+            errorResponse.stack = exception.stack;
         }
 
         response.status(status).json(errorResponse);

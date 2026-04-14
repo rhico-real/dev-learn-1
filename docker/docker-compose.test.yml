@@ -1,0 +1,14 @@
+services:
+    postgres-test:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_DB: runhop_test
+            POSTGRES_USER: runhop
+            POSTGRES_PASSWORD: runhop
+        ports:
+            - '5433:5432'
+
+    redis-test:
+        image: redis:7-alpine
+        ports:
+            - '6380:6379'

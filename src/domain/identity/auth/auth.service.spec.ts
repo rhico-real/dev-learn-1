@@ -1,19 +1,20 @@
-import { UserService } from "../user/user.service"
+import { UserService } from '../user/user.service';
 
 jest.mock('bcrypt', () => ({
-    compare: jest.fn()
+    compare: jest.fn(),
 }));
 
 import * as bcrypt from 'bcrypt';
-import { AuthService } from "./auth.service";
-import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
-import { RedisService } from "../../../infrastructure/redis/redis.service";
-import { ConfigService } from "@nestjs/config";
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import { AuthService } from './auth.service';
+import { Test, TestingModule } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
+import { RedisService } from '../../../infrastructure/redis/redis.service';
+import { ConfigService } from '@nestjs/config';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { User } from '@prisma/client';
 
 jest.mock('uuid', () => ({
-    v4: jest.fn().mockReturnValue('mock-uuid')
+    v4: jest.fn().mockReturnValue('mock-uuid'),
 }));
 
 describe('AuthService', () => {
@@ -24,35 +25,35 @@ describe('AuthService', () => {
         email: 'test@test.com',
         password: '$2b$12$fakehash',
         displayName: 'Test User',
-        role: 'USER'
+        role: 'USER',
     };
 
     const mockUserWithoutPassword = {
         id: 'user-123',
         email: 'test@test.com',
         displayName: 'Test User',
-        role: 'USER'
+        role: 'USER',
     };
 
     const mockUserService = {
         findByEmail: jest.fn(),
         create: jest.fn(),
-        findById: jest.fn()
+        findById: jest.fn(),
     };
 
     const mockJwtService = {
-        sign: jest.fn().mockReturnValue('mock-access-token')
+        sign: jest.fn().mockReturnValue('mock-access-token'),
     };
 
     const mockRedisService = {
         setex: jest.fn(),
         get: jest.fn(),
         del: jest.fn(),
-        delByPattern: jest.fn()
+        delByPattern: jest.fn(),
     };
 
     const mockConfigService = {
-        get: jest.fn().mockReturnValue(604800)
+        get: jest.fn().mockReturnValue(604800),
     };
 
     beforeEach(async () => {
@@ -62,8 +63,8 @@ describe('AuthService', () => {
                 { provide: UserService, useValue: mockUserService },
                 { provide: JwtService, useValue: mockJwtService },
                 { provide: RedisService, useValue: mockRedisService },
-                { provide: ConfigService, useValue: mockConfigService }
-            ]
+                { provide: ConfigService, useValue: mockConfigService },
+            ],
         }).compile();
 
         service = module.get<AuthService>(AuthService);
@@ -81,14 +82,16 @@ describe('AuthService', () => {
             const result = await service.register({
                 email: 'test@test.com',
                 password: '123123',
-                displayName: 'Test User'
+                displayName: 'Test User',
             });
 
             // Assert
             expect(result.accessToken).toBe('mock-access-token');
             expect(result.refreshToken).toBeDefined();
-            expect(result.user.email).toBe(mockUser.email);
-            expect(result.user.displayName).toBe(mockUser.displayName);
+            expect((result.user as User).email).toBe(mockUser.email);
+            expect((result.user as User).displayName).toBe(
+                mockUser.displayName,
+            );
             expect(result.user).not.toHaveProperty('password');
             expect(mockRedisService.setex).toHaveBeenCalled();
         });
@@ -98,11 +101,13 @@ describe('AuthService', () => {
             mockUserService.findByEmail.mockResolvedValue(mockUser);
 
             // Act and Assert
-            await expect(service.register({
-                email: 'test@test.com',
-                password: '123123',
-                displayName: 'Test User'
-            })).rejects.toThrow(ConflictException);
+            await expect(
+                service.register({
+                    email: 'test@test.com',
+                    password: '123123',
+                    displayName: 'Test User',
+                }),
+            ).rejects.toThrow(ConflictException);
         });
     });
 
@@ -114,7 +119,10 @@ describe('AuthService', () => {
             (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
             // Act
-            const result = await service.login({ email: 'test@test.com', password: '123123' });
+            const result = await service.login({
+                email: 'test@test.com',
+                password: '123123',
+            });
 
             // Assert
             expect(result.accessToken).toBe('mock-access-token');
@@ -128,7 +136,9 @@ describe('AuthService', () => {
             mockUserService.findByEmail.mockResolvedValue(null);
 
             // Act and Assert
-            await expect(service.login({ email: 'test@test.com', password: '123123' })).rejects.toThrow(UnauthorizedException);
+            await expect(
+                service.login({ email: 'test@test.com', password: '123123' }),
+            ).rejects.toThrow(UnauthorizedException);
         });
 
         // Test: throws UnauthorizedException for wrong password
@@ -138,7 +148,9 @@ describe('AuthService', () => {
             (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
             // Act and Assert
-            await expect(service.login({ email: 'test@test.com', password: '123123' })).rejects.toThrow(UnauthorizedException);
+            await expect(
+                service.login({ email: 'test@test.com', password: '123123' }),
+            ).rejects.toThrow(UnauthorizedException);
         });
     });
 
@@ -151,7 +163,9 @@ describe('AuthService', () => {
             mockUserService.findById.mockResolvedValue(mockUser);
 
             // Act
-            const result = await service.refresh({ refreshToken: 'refresh-token' });
+            const result = await service.refresh({
+                refreshToken: 'refresh-token',
+            });
 
             // Assert
             expect(result.accessToken).toBe('mock-access-token');
@@ -161,10 +175,12 @@ describe('AuthService', () => {
         // Test: throws UnauthorizedException for invalid/expired refresh token
         it('should throw UnauthorizedException for invalid/expired refresh token', async () => {
             // Arrange
-            mockRedisService.get.mockResolvedValue(null)
+            mockRedisService.get.mockResolvedValue(null);
 
             // Act and Assert
-            await expect(service.refresh({ refreshToken: 'refresh-token' })).rejects.toThrow(UnauthorizedException);
+            await expect(
+                service.refresh({ refreshToken: 'refresh-token' }),
+            ).rejects.toThrow(UnauthorizedException);
         });
     });
 
@@ -178,8 +194,14 @@ describe('AuthService', () => {
             await service.logout('sample-jti', 'my-user-id');
 
             // Assert
-            expect(mockRedisService.setex).toHaveBeenCalledWith('auth:blacklist:sample-jti', 900, 'revoke');
-            expect(mockRedisService.delByPattern).toHaveBeenCalledWith('auth:refresh:my-user-id:*');
+            expect(mockRedisService.setex).toHaveBeenCalledWith(
+                'auth:blacklist:sample-jti',
+                900,
+                'revoke',
+            );
+            expect(mockRedisService.delByPattern).toHaveBeenCalledWith(
+                'auth:refresh:my-user-id:*',
+            );
         });
     });
-})
+});

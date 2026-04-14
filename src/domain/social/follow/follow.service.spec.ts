@@ -15,7 +15,7 @@ import { Prisma, TargetType } from '@prisma/client';
 describe('Follow Service', () => {
     let service: FollowService;
 
-    let mockPrisma = {
+    const mockPrisma = {
         follow: {
             create: jest.fn(),
             findUnique: jest.fn(),
@@ -24,7 +24,7 @@ describe('Follow Service', () => {
         },
     };
 
-    let mockFollowUser = {
+    const mockFollowUser = {
         id: 'follow-id-123',
         followerId: 'follower-id-123',
         targetId: 'target-id-123',
@@ -32,7 +32,7 @@ describe('Follow Service', () => {
         createdAt: new Date('2026-04-11'),
     };
 
-    let mockFollowOrg = {
+    const mockFollowOrg = {
         id: 'follow-org-id-123',
         followerId: 'follower-org-id-123',
         targetId: 'target-org-id-123',
@@ -40,7 +40,7 @@ describe('Follow Service', () => {
         createdAt: new Date('2026-04-11'),
     };
 
-    let mockFollowEvent = {
+    const mockFollowEvent = {
         id: 'follow-event-id-123',
         followerId: 'follower-event-id-123',
         targetId: 'target-event-id-123',
@@ -48,15 +48,15 @@ describe('Follow Service', () => {
         createdAt: new Date('2026-04-11'),
     };
 
-    let mockUserService = {
+    const mockUserService = {
         exists: jest.fn(),
     };
 
-    let mockOrgService = {
+    const mockOrgService = {
         exists: jest.fn(),
     };
 
-    let mockEventService = {
+    const mockEventService = {
         exists: jest.fn(),
     };
 

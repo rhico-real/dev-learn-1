@@ -52,7 +52,7 @@ export class FollowService {
                 break;
             default:
                 throw new BadRequestException(
-                    `Invalid target type: ${targetType}`,
+                    `Invalid target type: ${targetType as string}`,
                 );
         }
 

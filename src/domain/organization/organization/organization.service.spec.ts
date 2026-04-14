@@ -1,41 +1,43 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { OrganizationService } from "./organization.service";
-import { PrismaService } from "../../../infrastructure/database/prisma.service";
-import { NotFoundException } from "@nestjs/common";
-import { GenerateSlugService } from "../../../common/generate-slug.service";
+import { Test, TestingModule } from '@nestjs/testing';
+import { OrganizationService } from './organization.service';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { NotFoundException } from '@nestjs/common';
+import { GenerateSlugService } from '../../../common/generate-slug.service';
 
 describe('OrganizationService', () => {
-    let service: OrganizationService
+    let service: OrganizationService;
 
     const mockOrg = {
         id: 'id-123',
         name: 'Manila Runners Club',
         slug: 'manila-runners-club',
-        description: 'some-description'
-    }
+        description: 'some-description',
+    };
 
     const mockOrgMembership = {
         id: 'id-123',
         userId: 'some-user-id',
         org: 'some-org-id',
-    }
+    };
 
     const mockPrisma = {
         organization: {
             create: jest.fn(),
             findUnique: jest.fn(),
             update: jest.fn(),
-            findMany: jest.fn()
+            findMany: jest.fn(),
         },
         orgMembership: {
-            create: jest.fn()
+            create: jest.fn(),
         },
-        $transaction: jest.fn().mockImplementation((callback) => callback(mockPrisma))
-    }
+        $transaction: jest
+            .fn()
+            .mockImplementation((callback) => callback(mockPrisma)),
+    };
 
     const mockGenerateSlug = {
-        generateSlug: jest.fn()
-    }
+        generateSlug: jest.fn(),
+    };
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -43,7 +45,7 @@ describe('OrganizationService', () => {
                 OrganizationService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: GenerateSlugService, useValue: mockGenerateSlug },
-            ]
+            ],
         }).compile();
 
         service = module.get<OrganizationService>(OrganizationService);
@@ -56,24 +58,38 @@ describe('OrganizationService', () => {
         it('should create org and OWNER membership in transaction', async () => {
             // Arrange
             mockPrisma.organization.create.mockResolvedValue(mockOrg);
-            mockPrisma.orgMembership.create.mockResolvedValue(mockOrgMembership);
-            mockGenerateSlug.generateSlug.mockReturnValue('manila-runners-club');
+            mockPrisma.orgMembership.create.mockResolvedValue(
+                mockOrgMembership,
+            );
+            mockGenerateSlug.generateSlug.mockReturnValue(
+                'manila-runners-club',
+            );
 
             // Act
-            const result = await service.create('some-user-id', { name: 'Manila Runners Club', description: 'some-description' });
+            const result = await service.create('some-user-id', {
+                name: 'Manila Runners Club',
+                description: 'some-description',
+            });
 
             // Assert
             expect(mockPrisma.$transaction).toHaveBeenCalled();
             expect(mockPrisma.organization.create).toHaveBeenCalledWith({
-                data: { name: 'Manila Runners Club', slug: 'manila-runners-club', description: 'some-description' }
+                data: {
+                    name: 'Manila Runners Club',
+                    slug: 'manila-runners-club',
+                    description: 'some-description',
+                },
             });
             expect(mockPrisma.orgMembership.create).toHaveBeenCalledWith({
-                data: { userId: 'some-user-id', orgId: mockOrg.id, role: 'OWNER' }
+                data: {
+                    userId: 'some-user-id',
+                    orgId: mockOrg.id,
+                    role: 'OWNER',
+                },
             });
             expect(result).toEqual(mockOrg);
         });
     });
-
 
     // TEST SUITE: find by slug
     describe('Find by slug', () => {
@@ -84,8 +100,8 @@ describe('OrganizationService', () => {
 
             expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith({
                 where: {
-                    slug: 'manila-runners-club'
-                }
+                    slug: 'manila-runners-club',
+                },
             });
             expect(result).toEqual(mockOrg);
         });
@@ -93,17 +109,23 @@ describe('OrganizationService', () => {
         // test: should throw NotFoundException when org not found
         it('should throw NotFoundException when org not found', async () => {
             mockPrisma.organization.findUnique.mockResolvedValue(null);
-            await expect(service.findBySlug('manila-runners-club')).rejects.toThrow(NotFoundException);
+            await expect(
+                service.findBySlug('manila-runners-club'),
+            ).rejects.toThrow(NotFoundException);
         });
 
         // test: should throw NotFoundException when org is soft-deleted
         it('should throw NotFoundException when org is soft-deleted', async () => {
-            mockPrisma.organization.findUnique.mockResolvedValue({ ...mockOrg, deletedAt: new Date() });
+            mockPrisma.organization.findUnique.mockResolvedValue({
+                ...mockOrg,
+                deletedAt: new Date(),
+            });
 
-            await expect(service.findBySlug('manila-runners-club')).rejects.toThrow(NotFoundException);
+            await expect(
+                service.findBySlug('manila-runners-club'),
+            ).rejects.toThrow(NotFoundException);
         });
     });
-
 
     // TEST SUITE: find by id
     describe('Find By Id', () => {
@@ -112,13 +134,11 @@ describe('OrganizationService', () => {
             mockPrisma.organization.findUnique.mockResolvedValue(mockOrg);
             const result = await service.findById('org-123');
 
-            expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith(
-                {
-                    where: {
-                        id: 'org-123'
-                    }
-                }
-            );
+            expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith({
+                where: {
+                    id: 'org-123',
+                },
+            });
             expect(result).toEqual(mockOrg);
         });
 
@@ -126,30 +146,33 @@ describe('OrganizationService', () => {
         it('should throw NotFoundException when not found', async () => {
             mockPrisma.organization.findUnique.mockResolvedValue(null);
 
-            await expect(service.findById('org-124')).rejects.toThrow(NotFoundException);
-
-            expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith(
-                {
-                    where: {
-                        id: 'org-124'
-                    }
-                }
+            await expect(service.findById('org-124')).rejects.toThrow(
+                NotFoundException,
             );
 
+            expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith({
+                where: {
+                    id: 'org-124',
+                },
+            });
         });
 
         // Test: throws NotFoundException when soft-deleted
         it('should throw NotFoundException when soft-deleted', async () => {
-            mockPrisma.organization.findUnique.mockResolvedValue({ ...mockOrg, deletedAt: new Date() });
-            await expect(service.findById('org-125')).rejects.toThrow(NotFoundException);
+            mockPrisma.organization.findUnique.mockResolvedValue({
+                ...mockOrg,
+                deletedAt: new Date(),
+            });
+            await expect(service.findById('org-125')).rejects.toThrow(
+                NotFoundException,
+            );
             expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith({
                 where: {
-                    id: 'org-125'
-                }
-            })
+                    id: 'org-125',
+                },
+            });
         });
     });
-
 
     // TEST SUITE: exists
     describe('exists', () => {
@@ -159,8 +182,8 @@ describe('OrganizationService', () => {
             const result = await service.exists('id-123');
             expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
-                }
+                    id: 'id-123',
+                },
             });
 
             expect(result).toBe(true);
@@ -172,29 +195,31 @@ describe('OrganizationService', () => {
             const result = await service.exists('id-123');
             expect(mockPrisma.organization.findUnique).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
-                }
+                    id: 'id-123',
+                },
             });
 
             expect(result).toBe(false);
         });
     });
 
-
     // TEST SUITE: update
     describe('update', () => {
         // Test: updates org fields
         it('should update org fields', async () => {
-            mockPrisma.organization.update.mockResolvedValue({ ...mockOrg, name: 'New Name' });
+            mockPrisma.organization.update.mockResolvedValue({
+                ...mockOrg,
+                name: 'New Name',
+            });
             const result = await service.update('id-123', { name: 'New Name' });
 
             expect(mockPrisma.organization.update).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
+                    id: 'id-123',
                 },
                 data: {
-                    name: 'New Name'
-                }
+                    name: 'New Name',
+                },
             });
             expect(result).toEqual({ ...mockOrg, name: 'New Name' });
         });
@@ -202,28 +227,29 @@ describe('OrganizationService', () => {
         //   Assert: verify update called with correct where and data
     });
 
-
     // TEST SUITE: delete
     describe('delete', () => {
         // Test: soft deletes by setting deletedAt
         it('should soft deletes by setting deletedAt', async () => {
-            mockPrisma.organization.update.mockResolvedValue({ ...mockOrg, deletedAt: new Date() });
+            mockPrisma.organization.update.mockResolvedValue({
+                ...mockOrg,
+                deletedAt: new Date(),
+            });
             const result = await service.delete('id-123');
 
             expect(mockPrisma.organization.update).toHaveBeenCalledWith({
                 where: {
-                    id: 'id-123'
+                    id: 'id-123',
                 },
                 data: {
-                    deletedAt: new Date()
-                }
+                    deletedAt: new Date(),
+                },
             });
-            expect(result).toEqual({ ...mockOrg, deletedAt: new Date() })
+            expect(result).toEqual({ ...mockOrg, deletedAt: new Date() });
         });
         //   Assert: verify update called with { data: { deletedAt: expect.any(Date) } }
         //   (NOT prisma.organization.delete — we don't hard delete)
     });
-
 
     // TEST SUITE: list
     describe('list', () => {
@@ -235,10 +261,13 @@ describe('OrganizationService', () => {
             expect(mockPrisma.organization.findMany).toHaveBeenCalledWith({
                 take: 20,
                 where: { deletedAt: null },
-                orderBy: { createdAt: 'desc' }
+                orderBy: { createdAt: 'desc' },
             });
 
-            expect(result).toEqual({ data: [mockOrg], meta: { cursor: mockOrg.id } });
+            expect(result).toEqual({
+                data: [mockOrg],
+                meta: { cursor: mockOrg.id },
+            });
         });
 
         // Test: returns orgs with cursor (verify skip: 1 and cursor are set)
@@ -252,12 +281,13 @@ describe('OrganizationService', () => {
                 orderBy: { createdAt: 'desc' },
                 skip: 1,
                 cursor: {
-                    id: 'cursor'
-                }
+                    id: 'cursor',
+                },
             });
-            expect(result).toEqual({ data: [mockOrg], meta: { cursor: mockOrg.id } });
+            expect(result).toEqual({
+                data: [mockOrg],
+                meta: { cursor: mockOrg.id },
+            });
         });
-
-    })
-
-}); 
+    });
+});

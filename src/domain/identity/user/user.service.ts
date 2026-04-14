@@ -1,25 +1,29 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../../../infrastructure/database/prisma.service";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { RegisterDto } from '../auth/dto/register.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class UserService {
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService) {}
 
-    private excludePassword(user: any) {
+    private excludePassword(user: User) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     }
 
-    async create(data: any) {
+    async create(data: RegisterDto) {
         const passwordHash = await bcrypt.hash(data.password, 12);
 
         const user = await this.prisma.user.create({
             data: {
                 email: data.email,
                 password: passwordHash,
-                displayName: data.displayName
-            }
+                displayName: data.displayName,
+            },
         });
 
         return this.excludePassword(user);
@@ -29,8 +33,8 @@ export class UserService {
         const user = await this.prisma.user.findUnique({
             where: {
                 email,
-                deletedAt: null
-            }
+                deletedAt: null,
+            },
         });
 
         return user;
@@ -40,8 +44,8 @@ export class UserService {
         const user = await this.prisma.user.findUnique({
             where: {
                 id,
-                deletedAt: null
-            }
+                deletedAt: null,
+            },
         });
 
         if (!user) {
@@ -55,21 +59,22 @@ export class UserService {
         const user = await this.prisma.user.findUnique({
             where: {
                 id,
-                deletedAt: null
+                deletedAt: null,
             },
             select: {
-                id: true
-            }
+                id: true,
+            },
         });
 
         return !!user;
     }
 
-    async update(id: string, data: any) {
+    async update(id: string, data: UpdateUserDto) {
         const user = await this.prisma.user.update({
             where: {
-                id
-            }, data
+                id,
+            },
+            data,
         });
 
         return this.excludePassword(user);

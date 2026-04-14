@@ -1,16 +1,27 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { CurrentUser } from "../../../shared/decorators/current-user.decorator";
-import * as interfaces from "../../../shared/types/interfaces";
-import { OrgMembership } from "@prisma/client";
-import { OrgMembershipService } from "../../organization/org-membership/org-membership.service";
-import { CreateEventDto } from "./dto/create-event.dto";
-import { EventService } from "./event.service";
-import { UpdateEventDto } from "./dto/update-event.dto";
-import { UpdateEventStatusDto } from "./dto/update-event-status.dto";
+import {
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
+} from '@nestjs/common';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
+import * as interfaces from '../../../shared/types/interfaces';
+import { OrgMembershipService } from '../../organization/org-membership/org-membership.service';
+import { CreateEventDto } from './dto/create-event.dto';
+import { EventService } from './event.service';
+import { UpdateEventDto } from './dto/update-event.dto';
+import { UpdateEventStatusDto } from './dto/update-event-status.dto';
 
 @Controller('events')
 export class EventController {
-    constructor(private service: EventService, private membershipService: OrgMembershipService) { }
+    constructor(
+        private service: EventService,
+        private membershipService: OrgMembershipService,
+    ) {}
 
     // POST /events
     /**
@@ -21,13 +32,13 @@ export class EventController {
     async create(
         @CurrentUser() user: interfaces.AuthenticatedUser,
         @Param('orgId') orgId: string,
-        @Body() dto: CreateEventDto
+        @Body() dto: CreateEventDto,
     ) {
         await this.membershipService.verifyRole(user.userId, orgId, 'ADMIN');
         return this.service.create(orgId, dto);
     }
 
-    // GET  /events 
+    // GET  /events
     @Get()
     async listPublished(
         @Query('cursor') cursor?: string,
@@ -38,9 +49,7 @@ export class EventController {
 
     // GET  /events/:slug
     @Get(':slug')
-    async findBySlug(
-        @Param('slug') slug: string,
-    ) {
+    async findBySlug(@Param('slug') slug: string) {
         return this.service.findBySlug(slug);
     }
 
@@ -52,13 +61,13 @@ export class EventController {
     async updateEvent(
         @CurrentUser() user: interfaces.AuthenticatedUser,
         @Param('id') id: string,
-        @Body() dto: UpdateEventDto
+        @Body() dto: UpdateEventDto,
     ) {
         // Get the event
         const event = await this.service.findById(id);
 
         // Get the org of the event
-        const orgId = event!.orgId;
+        const orgId = event.orgId;
 
         // check role of current user
         await this.membershipService.verifyRole(user.userId, orgId, 'ADMIN');
@@ -74,13 +83,13 @@ export class EventController {
     async updateEventStatus(
         @CurrentUser() user: interfaces.AuthenticatedUser,
         @Param('id') id: string,
-        @Body() dto: UpdateEventStatusDto
+        @Body() dto: UpdateEventStatusDto,
     ) {
         // Get the event
         const event = await this.service.findById(id);
 
         // Get the org of the event
-        const orgId = event!.orgId;
+        const orgId = event.orgId;
 
         // check role of current user
         await this.membershipService.verifyRole(user.userId, orgId, 'ADMIN');
@@ -102,7 +111,7 @@ export class EventController {
         const event = await this.service.findById(id);
 
         // Get the org of the event
-        const orgId = event!.orgId;
+        const orgId = event.orgId;
 
         // check role of current user
         await this.membershipService.verifyRole(user.userId, orgId, 'ADMIN');

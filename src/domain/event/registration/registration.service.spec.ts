@@ -105,7 +105,7 @@ describe('RegistrationService', () => {
             const result = await service.create('user-id-123', 'race-id-123');
 
             expect(result).toEqual(mockRegistration);
-            await expect(mockPrisma.registration.create).toHaveBeenCalledWith({
+            expect(mockPrisma.registration.create).toHaveBeenCalledWith({
                 data: {
                     userId: 'user-id-123',
                     raceId: 'race-id-123',
@@ -432,9 +432,7 @@ describe('RegistrationService', () => {
             );
             const result = await service.findById('reg-id-123');
             expect(result).toEqual(mockRegistration);
-            await expect(
-                mockPrisma.registration.findUnique,
-            ).toHaveBeenCalledWith({
+            expect(mockPrisma.registration.findUnique).toHaveBeenCalledWith({
                 where: {
                     id: 'reg-id-123',
                 },

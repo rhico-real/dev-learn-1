@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 
@@ -9,7 +9,7 @@ export class RedisService implements OnModuleDestroy {
     constructor(private configService: ConfigService) {
         this.client = new Redis({
             host: this.configService.get<string>('REDIS_HOST'),
-            port: this.configService.get<number>('REDIS_PORT')
+            port: this.configService.get<number>('REDIS_PORT'),
         });
     }
     async get(key: string) {
@@ -27,16 +27,16 @@ export class RedisService implements OnModuleDestroy {
     async delByPattern(pattern: string) {
         const stream = this.client.scanStream({
             match: pattern,
-            count: 100
+            count: 100,
         });
 
-        stream.on('data', async (keys: string[]) => {
+        stream.on('data', (keys: string[]) => {
             if (keys.length > 0) {
-                await this.client.del(...keys);
+                void this.client.del(...keys);
             }
         });
 
-        return new Promise((resolve) => stream.on('end', resolve));
+        return new Promise<void>((resolve) => stream.on('end', resolve));
     }
 
     async setex(key: string, seconds: number, value: string) {
@@ -45,5 +45,9 @@ export class RedisService implements OnModuleDestroy {
 
     async onModuleDestroy() {
         await this.client.quit();
+    }
+
+    async ping(): Promise<string> {
+        return this.client.ping();
     }
 }

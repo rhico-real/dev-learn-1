@@ -1,6 +1,6 @@
-import { INestApplication, ValidationPipe } from "@nestjs/common";
-import { Test, TestingModule } from "@nestjs/testing";
-import { AppModule } from "../../src/app.module";
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppModule } from '../../src/app.module';
 import request from 'supertest';
 
 describe('OrgMembership', () => {
@@ -18,12 +18,14 @@ describe('OrgMembership', () => {
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule]
+            imports: [AppModule],
         }).compile();
 
         app = moduleFixture.createNestApplication();
         app.setGlobalPrefix('api/v1');
-        app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+        app.useGlobalPipes(
+            new ValidationPipe({ whitelist: true, transform: true }),
+        );
         await app.init();
     });
 
@@ -39,7 +41,7 @@ describe('OrgMembership', () => {
                 .send({
                     email: 'owner-membership@test.org',
                     password: 'password123',
-                    displayName: 'Owner Membership'
+                    displayName: 'Owner Membership',
                 });
 
             ownerId = owner.body.data.user.id;
@@ -51,7 +53,7 @@ describe('OrgMembership', () => {
                 .send({
                     email: 'admin-membership@test.org',
                     password: 'password123',
-                    displayName: 'Admin Membership'
+                    displayName: 'Admin Membership',
                 });
 
             adminId = admin.body.data.user.id;
@@ -63,7 +65,7 @@ describe('OrgMembership', () => {
                 .send({
                     email: 'member-membership@test.org',
                     password: 'password123',
-                    displayName: 'Member Membership'
+                    displayName: 'Member Membership',
                 });
 
             memberId = member.body.data.user.id;
@@ -74,7 +76,7 @@ describe('OrgMembership', () => {
                 .set('Authorization', `Bearer ${ownerAccesstoken}`)
                 .send({
                     name: 'Test Org Membership',
-                    description: 'E2E testing org membership.'
+                    description: 'E2E testing org membership.',
                 });
 
             orgId = orgRes.body.data.id;
@@ -86,7 +88,7 @@ describe('OrgMembership', () => {
                 .post(`/api/v1/organizations/${orgId}/members`)
                 .set('Authorization', `Bearer ${ownerAccesstoken}`)
                 .send({
-                    userId: memberId
+                    userId: memberId,
                 });
 
             expect(result.statusCode).toBe(201);
@@ -99,13 +101,12 @@ describe('OrgMembership', () => {
                 .post(`/api/v1/organizations/${orgId}/members`)
                 .set('Authorization', `Bearer ${ownerAccesstoken}`)
                 .send({
-                    userId: memberId
+                    userId: memberId,
                 });
 
             expect(result.statusCode).toBe(409);
         });
     });
-
 
     describe('Update Member', () => {
         beforeAll(async () => {
@@ -115,7 +116,7 @@ describe('OrgMembership', () => {
                 .set('Authorization', `Bearer ${ownerAccesstoken}`)
                 .send({
                     userId: adminId,
-                    role: 'ADMIN'
+                    role: 'ADMIN',
                 });
         });
 
@@ -125,7 +126,7 @@ describe('OrgMembership', () => {
                 .patch(`/api/v1/organizations/${orgId}/members/${memberId}`)
                 .set('Authorization', `Bearer ${ownerAccesstoken}`)
                 .send({
-                    role: 'ADMIN'
+                    role: 'ADMIN',
                 });
 
             expect(result.statusCode).toBe(200);
@@ -144,7 +145,7 @@ describe('OrgMembership', () => {
                 .patch(`/api/v1/organizations/${orgId}/members/${memberId}`)
                 .set('Authorization', `Bearer ${adminAccesstoken}`)
                 .send({
-                    role: 'ADMIN'
+                    role: 'ADMIN',
                 });
 
             expect(result.statusCode).toBe(403);
@@ -168,9 +169,7 @@ describe('OrgMembership', () => {
                 .delete(`/api/v1/organizations/${orgId}/members/${ownerId}`)
                 .set('Authorization', `Bearer ${adminAccesstoken}`);
 
-            expect(result.statusCode).toBe(403)
-        })
+            expect(result.statusCode).toBe(403);
+        });
     });
-
-
 });

@@ -1,6 +1,6 @@
-import { HttpStatus, INestApplication, ValidationPipe } from "@nestjs/common"
-import { Test, TestingModule } from "@nestjs/testing";
-import { AppModule } from "../../src/app.module";
+import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppModule } from '../../src/app.module';
 import request from 'supertest';
 
 describe('Auth (e2e)', () => {
@@ -10,12 +10,14 @@ describe('Auth (e2e)', () => {
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule]
+            imports: [AppModule],
         }).compile();
 
         app = moduleFixture.createNestApplication();
         app.setGlobalPrefix('api/v1');
-        app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+        app.useGlobalPipes(
+            new ValidationPipe({ whitelist: true, transform: true }),
+        );
         await app.init();
     });
 
@@ -29,7 +31,7 @@ describe('Auth (e2e)', () => {
             .send({
                 email: 'e2e-test@test.com',
                 password: 'password123',
-                displayName: 'E2E User'
+                displayName: 'E2E User',
             })
             .expect(201)
             .expect((res) => {
@@ -46,7 +48,7 @@ describe('Auth (e2e)', () => {
             .send({
                 email: 'e2e-test@test.com',
                 password: 'password123',
-                displayName: 'E2E User'
+                displayName: 'E2E User',
             })
             .expect(HttpStatus.CONFLICT);
     });
@@ -65,7 +67,7 @@ describe('Auth (e2e)', () => {
                 refreshToken = res.body.data.refreshToken;
 
                 expect(res.body.data.accessToken).toBeDefined();
-                expect(res.body.data.refreshToken).toBeDefined()
+                expect(res.body.data.refreshToken).toBeDefined();
             });
     });
 
@@ -85,13 +87,13 @@ describe('Auth (e2e)', () => {
         return request(app.getHttpServer())
             .post('/api/v1/auth/refresh')
             .send({
-                refreshToken: refreshToken
+                refreshToken: refreshToken,
             })
             .expect(HttpStatus.OK)
             .expect((res) => {
                 expect(res.body.data.accessToken).toBeDefined();
                 expect(res.body.data.refreshToken).toBeDefined();
-            })
+            });
     });
 
     // Test: POST /auth/logout — should blacklist access token
@@ -99,7 +101,7 @@ describe('Auth (e2e)', () => {
         return request(app.getHttpServer())
             .post('/api/v1/auth/logout')
             .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.OK)
+            .expect(HttpStatus.OK);
     });
 
     // Test: After logout, using the old token should return 401
@@ -107,6 +109,6 @@ describe('Auth (e2e)', () => {
         return request(app.getHttpServer())
             .post('/api/v1/auth/logout')
             .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.UNAUTHORIZED)
+            .expect(HttpStatus.UNAUTHORIZED);
     });
-})
+});

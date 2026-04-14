@@ -5,12 +5,12 @@ import { OrganizationContextModule } from '../organization/organization-context.
 import { EventModule } from './event/event.module';
 
 @Module({
-  imports: [
-    EventModule,
-    RaceModule,
-    RegistrationModule,
-    OrganizationContextModule,
-  ],
-  exports: [EventModule, RaceModule, RegistrationModule],
+    imports: [
+        EventModule,
+        RaceModule,
+        RegistrationModule,
+        OrganizationContextModule,
+    ],
+    exports: [EventModule, RaceModule, RegistrationModule],
 })
 export class EventContextModule {}

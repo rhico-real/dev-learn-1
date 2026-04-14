@@ -1,6 +1,12 @@
-import { IsDateString, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
-import { IsAfter } from "../../../../common/validators/is-after.validator";
-import { Transform } from "class-transformer";
+import {
+    IsDateString,
+    IsOptional,
+    IsString,
+    MaxLength,
+    MinLength,
+} from 'class-validator';
+import { IsAfter } from '../../../../common/validators/is-after.validator';
+import { Transform } from 'class-transformer';
 
 export class CreateEventDto {
     @IsString()
@@ -23,11 +29,11 @@ export class CreateEventDto {
     bannerImage?: string;
 
     @IsDateString()
-    @Transform(({ value }) => new Date(value).toISOString())
+    @Transform(({ value }: { value: string }) => new Date(value).toISOString())
     startDate!: string;
 
     @IsDateString()
-    @Transform(({ value }) => new Date(value).toISOString())
+    @Transform(({ value }: { value: string }) => new Date(value).toISOString())
     @IsAfter('startDate', { message: 'end date must be after start date' })
     endDate!: string;
 }

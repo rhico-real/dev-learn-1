@@ -1,7 +1,7 @@
-import { Type } from "class-transformer";
-import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { Type } from 'class-transformer';
+import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
-export class PaginationQueryDTO{
+export class PaginationQueryDTO {
     @IsOptional()
     @IsString()
     cursor?: string;
@@ -11,5 +11,5 @@ export class PaginationQueryDTO{
     @Min(1)
     @Max(100)
     @Type(() => Number)
-    limit?:number = 20
+    limit?: number = 20;
 }

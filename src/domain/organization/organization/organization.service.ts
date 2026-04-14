@@ -1,16 +1,16 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { CreateOrganizationDto } from "./dto/create-organization.dto";
-import { UpdateOrganizationDto } from "./dto/update-organization.dto";
-import { PrismaService } from "../../../infrastructure/database/prisma.service";
-import { randomUUID } from 'crypto';
-import { GenerateSlugService } from "../../../common/generate-slug.service";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { GenerateSlugService } from '../../../common/generate-slug.service';
 
 @Injectable()
 export class OrganizationService {
-    constructor(private prisma: PrismaService, private generateSlug: GenerateSlugService) { }
-
-
+    constructor(
+        private prisma: PrismaService,
+        private generateSlug: GenerateSlugService,
+    ) {}
 
     async create(userId: string, dto: CreateOrganizationDto) {
         const slug = this.generateSlug.generateSlug(dto.name);
@@ -20,16 +20,16 @@ export class OrganizationService {
                 data: {
                     name: dto.name,
                     slug,
-                    description: dto.description
-                }
+                    description: dto.description,
+                },
             });
 
             await tx.orgMembership.create({
                 data: {
                     userId,
                     orgId: org.id,
-                    role: 'OWNER'
-                }
+                    role: 'OWNER',
+                },
             });
 
             return org;
@@ -40,12 +40,12 @@ export class OrganizationService {
         const args: Prisma.OrganizationFindManyArgs = {
             take,
             where: { deletedAt: null },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
         };
 
         if (cursor) {
             args.skip = 1;
-            args.cursor = { id: cursor }
+            args.cursor = { id: cursor };
         }
 
         const result = await this.prisma.organization.findMany(args);
@@ -54,20 +54,21 @@ export class OrganizationService {
         return {
             data: result,
             meta: {
-                cursor: nextCursor
-            }
-        }
+                cursor: nextCursor,
+            },
+        };
     }
 
     // find by slug
     async findBySlug(slug: string) {
         const org = await this.prisma.organization.findUnique({
             where: {
-                slug: slug
-            }
+                slug: slug,
+            },
         });
 
-        if (!org || org.deletedAt) throw new NotFoundException('Organization not found');
+        if (!org || org.deletedAt)
+            throw new NotFoundException('Organization not found');
 
         return org;
     }
@@ -76,11 +77,12 @@ export class OrganizationService {
     async findById(id: string) {
         const org = await this.prisma.organization.findUnique({
             where: {
-                id: id
-            }
+                id: id,
+            },
         });
 
-        if (!org || org.deletedAt) throw new NotFoundException('Organization not found');
+        if (!org || org.deletedAt)
+            throw new NotFoundException('Organization not found');
 
         return org;
     }
@@ -89,8 +91,8 @@ export class OrganizationService {
     async exists(id: string) {
         const org = await this.prisma.organization.findUnique({
             where: {
-                id: id
-            }
+                id: id,
+            },
         });
 
         if (org?.deletedAt) {
@@ -104,7 +106,7 @@ export class OrganizationService {
     async update(id: string, dto: UpdateOrganizationDto) {
         return await this.prisma.organization.update({
             where: { id },
-            data: dto
+            data: dto,
         });
     }
 
@@ -113,8 +115,8 @@ export class OrganizationService {
         return await this.prisma.organization.update({
             where: { id },
             data: {
-                deletedAt: new Date()
-            }
-        })
+                deletedAt: new Date(),
+            },
+        });
     }
 }

@@ -1,8 +1,8 @@
-import { INestApplication, ValidationPipe } from "@nestjs/common";
-import { Test, TestingModule } from "@nestjs/testing";
-import { AppModule } from "../../src/app.module";
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppModule } from '../../src/app.module';
 import request from 'supertest';
-import { Organization } from "@prisma/client";
+import { Organization } from '@prisma/client';
 
 /**
  *  - Register a user, create an org, verify OWNER membership was auto-created
@@ -16,16 +16,18 @@ describe('Organization (e2e)', () => {
     let app: INestApplication;
     let accessToken: string;
 
-    let orgSaved: Organization
+    let orgSaved: Organization;
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule]
+            imports: [AppModule],
         }).compile();
 
         app = moduleFixture.createNestApplication();
         app.setGlobalPrefix('api/v1');
-        app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+        app.useGlobalPipes(
+            new ValidationPipe({ whitelist: true, transform: true }),
+        );
         await app.init();
     });
 
@@ -40,7 +42,6 @@ describe('Organization (e2e)', () => {
          * Step 3: Verify if membership was auto-created and that user is OWNER
          */
 
-
         // Step 1
         it('POST /auth/register - should register a new user', async () => {
             await request(app.getHttpServer())
@@ -48,7 +49,7 @@ describe('Organization (e2e)', () => {
                 .send({
                     email: 'org-test@test.com',
                     password: 'password123',
-                    displayName: 'E2E Org Test'
+                    displayName: 'E2E Org Test',
                 })
                 .expect(201)
                 .expect((res) => {
@@ -63,7 +64,7 @@ describe('Organization (e2e)', () => {
                 .set('Authorization', `Bearer ${accessToken}`)
                 .send({
                     name: 'Test Org',
-                    description: 'E2E testing org.'
+                    description: 'E2E testing org.',
                 });
 
             // Register the org with the user
@@ -75,7 +76,9 @@ describe('Organization (e2e)', () => {
             orgSaved = orgRes.body.data;
 
             const membership = await request(app.getHttpServer())
-                .get(`/api/v1/organizations/${orgRes.body.data.id}/members/find`)
+                .get(
+                    `/api/v1/organizations/${orgRes.body.data.id}/members/find`,
+                )
                 .set('Authorization', `Bearer ${accessToken}`);
 
             // test if membership is OWNER of that org
@@ -103,7 +106,7 @@ describe('Organization (e2e)', () => {
                 .set('Authorization', `Bearer ${accessToken}`)
                 .send({
                     name: 'New name',
-                    description: 'New Description'
+                    description: 'New Description',
                 });
 
             expect(org.statusCode).toBe(200);
@@ -117,15 +120,18 @@ describe('Organization (e2e)', () => {
                 .send({
                     email: 'non-member@test.com',
                     password: 'password123',
-                    displayName: 'E2E Org Test Non Member'
+                    displayName: 'E2E Org Test Non Member',
                 });
 
             const org = await request(app.getHttpServer())
                 .patch(`/api/v1/organizations/${orgSaved.id}`)
-                .set('Authorization', `Bearer ${nonMemberUser.body.data.accessToken}`)
+                .set(
+                    'Authorization',
+                    `Bearer ${nonMemberUser.body.data.accessToken}`,
+                )
                 .send({
                     name: 'New name',
-                    description: 'New Description'
+                    description: 'New Description',
                 });
 
             expect(org.statusCode).toBe(403);
@@ -136,7 +142,7 @@ describe('Organization (e2e)', () => {
         it('should delete org but soft delete only', async () => {
             const org = await request(app.getHttpServer())
                 .delete(`/api/v1/organizations/${orgSaved.id}`)
-                .set('Authorization', `Bearer ${accessToken}`)
+                .set('Authorization', `Bearer ${accessToken}`);
 
             expect(org.statusCode).toBe(200);
             expect(org.body.data.deletedAt).not.toBeNull();
@@ -154,7 +160,7 @@ describe('Organization (e2e)', () => {
                     .set('Authorization', `Bearer ${accessToken}`)
                     .send({
                         name: `Test Org ${i}`,
-                        description: 'E2E testing org.'
+                        description: 'E2E testing org.',
                     });
             }
         });
@@ -174,15 +180,18 @@ describe('Organization (e2e)', () => {
 
         it('should return NEXT page using cursor from last item of previous page', async () => {
             const result = await request(app.getHttpServer())
-                .get(`/api/v1/organizations?cursor=${cursorFromPageOne}&limit=5`)
+                .get(
+                    `/api/v1/organizations?cursor=${cursorFromPageOne}&limit=5`,
+                )
                 .set('Authorization', `Bearer ${accessToken}`);
-
 
             // Check if all the items are not the same
             const newList = result.body.data;
 
-            const bIds = new Set(newList.map(((item: Organization) => item.id)));
-            const same = listOrgs.length === newList.length && listOrgs.every((item: Organization) => bIds.has(item.id));
+            const bIds = new Set(newList.map((item: Organization) => item.id));
+            const same =
+                listOrgs.length === newList.length &&
+                listOrgs.every((item: Organization) => bIds.has(item.id));
 
             expect(same).toBe(false);
             expect(result.body.data.length).toBe(5);
@@ -194,12 +203,14 @@ describe('Organization (e2e)', () => {
             let cursor: string | undefined;
             let lastNonEmptyCursor: string | undefined;
 
-            while(true){
+            while (true) {
                 const res = await request(app.getHttpServer())
-                .get(`/api/v1/organizations?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`)
-                .set('Authorization', `Bearer ${accessToken}`);
+                    .get(
+                        `/api/v1/organizations?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`,
+                    )
+                    .set('Authorization', `Bearer ${accessToken}`);
 
-                if(res.body.data.length === 0){
+                if (res.body.data.length === 0) {
                     break;
                 }
 
@@ -211,7 +222,7 @@ describe('Organization (e2e)', () => {
                 .get(`/api/v1/organizations?cursor=${lastNonEmptyCursor}`)
                 .set('Authorization', `Bearer ${accessToken}`);
 
-            expect(final.body.data.length).toBe(0)
+            expect(final.body.data.length).toBe(0);
         });
     });
 });

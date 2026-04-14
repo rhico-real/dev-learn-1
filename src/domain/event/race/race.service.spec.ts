@@ -1,8 +1,8 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { RaceService } from "./race.service";
-import { PrismaService } from "../../../infrastructure/database/prisma.service";
-import { EventService } from "../event/event.service";
-import { BadRequestException } from "@nestjs/common";
+import { Test, TestingModule } from '@nestjs/testing';
+import { RaceService } from './race.service';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { EventService } from '../event/event.service';
+import { BadRequestException } from '@nestjs/common';
 
 describe('RaceService', () => {
     let service: RaceService;
@@ -14,8 +14,8 @@ describe('RaceService', () => {
         distance: 123.45,
         unit: 'some-unit',
         maxParticipants: 500,
-        price: 1000
-    }
+        price: 1000,
+    };
 
     const mockUpdatedRace = {
         id: 'race-id-123',
@@ -24,24 +24,24 @@ describe('RaceService', () => {
         distance: 123.45,
         unit: 'some-unit',
         maxParticipants: 500,
-        price: 1000
-    }
+        price: 1000,
+    };
 
     const mockEventDraft = {
         id: 'some-event-id',
         orgId: 'some-org-id',
         name: 'Test Event',
         slug: 'test-event',
-        status: 'DRAFT'
-    }
+        status: 'DRAFT',
+    };
 
     const mockEventPublished = {
         id: 'event-id-123',
         orgId: 'some-org-id',
         name: 'Test Event',
         slug: 'test-event',
-        status: 'PUBLISHED'
-    }
+        status: 'PUBLISHED',
+    };
 
     const mockPrisma = {
         race: {
@@ -49,24 +49,24 @@ describe('RaceService', () => {
             findMany: jest.fn(),
             create: jest.fn(),
             update: jest.fn(),
-            delete: jest.fn()
+            delete: jest.fn(),
         },
         registration: {
-            count: jest.fn()
-        }
-    }
+            count: jest.fn(),
+        },
+    };
 
     const mockEventService = {
-        findById: jest.fn()
-    }
+        findById: jest.fn(),
+    };
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
-            providers:[
+            providers: [
                 RaceService,
-                {provide: PrismaService, useValue: mockPrisma},
-                {provide: EventService, useValue: mockEventService}
-            ]
+                { provide: PrismaService, useValue: mockPrisma },
+                { provide: EventService, useValue: mockEventService },
+            ],
         }).compile();
 
         service = module.get<RaceService>(RaceService);
@@ -93,7 +93,7 @@ describe('RaceService', () => {
             const result = await service.checkCapacity('id-123');
 
             expect(result.available).toBe(true);
-            expect(result.remaining).toBe(495)
+            expect(result.remaining).toBe(495);
         });
 
         // Test: returns {available: false, remaining: 0} when  at capacity
@@ -106,7 +106,6 @@ describe('RaceService', () => {
             expect(result.available).toBe(false);
             expect(result.remaining).toBe(0);
         });
-       
     });
 
     // create
@@ -116,24 +115,24 @@ describe('RaceService', () => {
             mockEventService.findById.mockResolvedValue(mockEventDraft);
             mockPrisma.race.create.mockResolvedValue(mockRace);
 
-            const result = await service.create('some-event-id',{
+            const result = await service.create('some-event-id', {
                 name: 'Test Race',
                 distance: 123.45,
                 unit: 'some-unit',
                 maxParticipants: 500,
-                price: 1000 
+                price: 1000,
             });
 
             expect(result).toEqual(mockRace);
             expect(mockPrisma.race.create).toHaveBeenCalledWith({
-                data:{
+                data: {
                     eventId: 'some-event-id',
                     name: 'Test Race',
                     distance: 123.45,
                     unit: 'some-unit',
                     maxParticipants: 500,
-                    price: 1000 
-                }
+                    price: 1000,
+                },
             });
         });
 
@@ -141,13 +140,15 @@ describe('RaceService', () => {
         it('should throw BadRequestException when event is not DRAFT', async () => {
             mockEventService.findById.mockResolvedValue(mockEventPublished);
 
-            await expect(service.create('some-event-id',{
-                name: 'Test Race',
-                distance: 123.45,
-                unit: 'some-unit',
-                maxParticipants: 500,
-                price: 1000 
-            })).rejects.toThrow(BadRequestException);
+            await expect(
+                service.create('some-event-id', {
+                    name: 'Test Race',
+                    distance: 123.45,
+                    unit: 'some-unit',
+                    maxParticipants: 500,
+                    price: 1000,
+                }),
+            ).rejects.toThrow(BadRequestException);
             expect(mockPrisma.race.create).not.toHaveBeenCalled();
         });
     });
@@ -160,16 +161,18 @@ describe('RaceService', () => {
             mockEventService.findById.mockResolvedValue(mockEventDraft);
             mockPrisma.race.update.mockResolvedValue(mockUpdatedRace);
 
-            const result = await service.update('race-id-123', {name: 'Updated Test Race'});
+            const result = await service.update('race-id-123', {
+                name: 'Updated Test Race',
+            });
 
             expect(result).toEqual(mockUpdatedRace);
             expect(mockPrisma.race.update).toHaveBeenCalledWith({
                 where: {
-                    id: 'race-id-123'
+                    id: 'race-id-123',
                 },
-                data:{
-                    name: 'Updated Test Race'
-                }
+                data: {
+                    name: 'Updated Test Race',
+                },
             });
         });
 
@@ -178,7 +181,9 @@ describe('RaceService', () => {
             mockPrisma.race.findUnique.mockResolvedValue(mockRace);
             mockEventService.findById.mockResolvedValue(mockEventPublished);
 
-            await expect(service.update('race-id-123', {name: 'Updated Test Race'})).rejects.toThrow(BadRequestException);
+            await expect(
+                service.update('race-id-123', { name: 'Updated Test Race' }),
+            ).rejects.toThrow(BadRequestException);
             expect(mockPrisma.race.update).not.toHaveBeenCalled();
         });
     });
@@ -186,7 +191,7 @@ describe('RaceService', () => {
     // delete
     describe('delete', () => {
         // Test: should delete race when event is DRAFT
-         it('should delete race when event is DRAFT', async () => {
+        it('should delete race when event is DRAFT', async () => {
             mockPrisma.race.findUnique.mockResolvedValue(mockRace);
             mockEventService.findById.mockResolvedValue(mockEventDraft);
             mockPrisma.race.delete.mockResolvedValue(mockRace);
@@ -196,7 +201,7 @@ describe('RaceService', () => {
             expect(result).toEqual(mockRace);
             expect(mockPrisma.race.delete).toHaveBeenCalledWith({
                 where: {
-                    id: 'race-id-123'
+                    id: 'race-id-123',
                 },
             });
         });
@@ -206,7 +211,9 @@ describe('RaceService', () => {
             mockPrisma.race.findUnique.mockResolvedValue(mockRace);
             mockEventService.findById.mockResolvedValue(mockEventPublished);
 
-            await expect(service.delete('race-id-123')).rejects.toThrow(BadRequestException);
+            await expect(service.delete('race-id-123')).rejects.toThrow(
+                BadRequestException,
+            );
             expect(mockPrisma.race.delete).not.toHaveBeenCalled();
         });
     });

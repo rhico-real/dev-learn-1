@@ -10,6 +10,7 @@ import { OrganizationContextModule } from './domain/organization/organization-co
 import { CommonModule } from './common/common.module';
 import { EventContextModule } from './domain/event/event-context.module';
 import { SocialContextModule } from './domain/social/social-context.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { SocialContextModule } from './domain/social/social-context.module';
         CommonModule,
         EventContextModule,
         SocialContextModule,
+        HealthModule,
     ],
     providers: [
         {
