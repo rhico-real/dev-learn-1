@@ -109,3 +109,88 @@ The global exception filter catches these and formats the response as:
 ```
 
 > **Tip:** That `400 Bad Request` error you just saw? It was because of malformed JSON in the request body. The server couldn't even parse it — that's always a 400.
+
+---
+
+## Best Practices
+
+### Prisma: When to Use `@unique` vs `@@index`
+
+Use `@unique` when the database must reject duplicates. Use `@@index` when duplicates are allowed, but you want filtering, lookup, or sorting to be faster.
+
+### Quick Rule
+
+- `@unique` means: there can only be one.
+- `@@index` means: there may be many, but you query this a lot.
+
+### Use `@unique` When
+
+- The value must be globally unique, such as `email`, `username`, or `slug`
+- Duplicate records would violate a business rule
+- A join or mapping table should only allow one specific pair
+
+Example:
+
+```prisma
+model User {
+  id    String @id @default(uuid())
+  email String @unique
+}
+```
+
+Example with a composite unique constraint:
+
+```prisma
+model Registration {
+  userId String
+  raceId String
+
+  @@unique([userId, raceId])
+}
+```
+
+This means one user can only register once per race.
+
+### Use `@@index` When
+
+- The field is used often in `where`, filtering, or sorting
+- The field is a foreign key like `userId`, `postId`, or `orgId`
+- Duplicates are valid, but query performance matters
+
+Example:
+
+```prisma
+model Post {
+  id       String @id @default(uuid())
+  authorId String
+  title    String
+
+  @@index([authorId])
+}
+```
+
+`authorId` should usually be indexed, not unique, because one user can have many posts.
+
+Example with a composite index:
+
+```prisma
+model Post {
+  authorId  String
+  createdAt DateTime
+
+  @@index([authorId, createdAt])
+}
+```
+
+This helps with queries like: get a user's posts ordered by date.
+
+### Practical Examples
+
+- Make fields unique for `email`, `username`, `slug`, and external provider IDs
+- Make relation keys indexed for `userId`, `eventId`, `raceId`, and similar foreign keys
+- Use `@@unique` for join-table pairs that must not repeat
+- Use `@@index` for status and date combinations commonly used in list pages, dashboards, or admin filters
+
+### Important Reminder
+
+Do not make a field unique just to speed it up. `@unique` is primarily a data integrity rule. If duplicates are valid and you only want better query performance, use an index instead.
