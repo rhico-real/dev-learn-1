@@ -42,6 +42,11 @@ enum TargetType {
   EVENT
 }
 
+enum NotificationType {
+  POST_LIKED
+  POST_COMMENTED
+}
+
 model User {
   id          String     @id @default(uuid())
   email       String     @unique
@@ -57,6 +62,10 @@ model User {
   memberships   OrgMembership[]
   registrations Registration[]
   follows       Follow[]
+  posts         Post[]
+  postLikes     PostLike[]
+  postComments  PostComment[]
+  notifications Notification[]
 }
 
 model Organization {
@@ -169,4 +178,75 @@ model Follow {
   @@unique([followerId, targetId, targetType])
   @@index([followerId])
   @@index([targetType, targetId])
+}
+
+model Post {
+  id String @id @default(uuid())
+
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+
+  content String
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  likes    PostLike[]
+  comments PostComment[]
+
+  @@index([authorId, createdAt])
+  @@index([createdAt])
+}
+
+model PostLike {
+  id String @id @default(uuid())
+
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@index([postId, createdAt])
+}
+
+model PostComment {
+  id String @id @default(uuid())
+
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+
+  content String
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  recipient   User   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId String
+
+  actorId   String
+  postId    String?
+  commentId String?
+  type      NotificationType
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([recipientId, createdAt])
+  @@index([recipientId, readAt])
 }

@@ -11,6 +11,7 @@ import { CommonModule } from './common/common.module';
 import { EventContextModule } from './domain/event/event-context.module';
 import { SocialContextModule } from './domain/social/social-context.module';
 import { HealthModule } from './health/health.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
     imports: [
@@ -30,6 +31,7 @@ import { HealthModule } from './health/health.module';
         EventContextModule,
         SocialContextModule,
         HealthModule,
+        EventEmitterModule.forRoot(),
     ],
     providers: [
         {
