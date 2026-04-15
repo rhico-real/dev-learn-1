@@ -1,5 +1,6 @@
 import {
     BadRequestException,
+    ForbiddenException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
@@ -14,6 +15,17 @@ export class PostService {
         return this.prisma.post.findUnique({
             where: { id: postId },
         });
+    }
+
+    async ownershipCheck(userId: string, postId: string) {
+        const post = await this.findById(postId);
+
+        if (!post) throw new NotFoundException('Post not found');
+
+        if (post.authorId !== userId)
+            throw new ForbiddenException('Not allowed to modify post.');
+
+        return post;
     }
 
     async exists(postId: string) {

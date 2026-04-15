@@ -61,6 +61,7 @@ export class PostController {
         @Param('id') id: string,
         @Body() dto: UpdatePostDto,
     ) {
+        await this.service.ownershipCheck(user.userId, id);
         return this.service.update(id, dto.content);
     }
 
@@ -69,6 +70,7 @@ export class PostController {
         @CurrentUser() user: interfaces.AuthenticatedUser,
         @Param('id') id: string,
     ) {
+        await this.service.ownershipCheck(user.userId, id);
         return this.service.delete(id);
     }
 }
