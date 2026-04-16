@@ -3,6 +3,7 @@
   - [Roadmap Overview](guides/roadmap-overview.md)
   - [Architecture Spec](superpowers/specs/2026-03-18-runhop-system-architecture-design.md)
   - [Phase 2 Social Design](superpowers/specs/2026-04-14-runhop-phase2-social-design.md)
+  - [Phase 3 Payments Design](superpowers/specs/2026-04-16-runhop-phase3-payments-design.md)
 
 - **Implementation Plan**
   - [Phase 1 MVP Plan](superpowers/plans/2026-03-18-runhop-phase1-mvp.md)

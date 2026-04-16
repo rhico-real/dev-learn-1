@@ -99,8 +99,8 @@ Right now, your docs status looks like this:
 | Phase | Status | Docs |
 |-------|--------|------|
 | **Phase 1** | Complete | [Phase 1 MVP Plan](../superpowers/plans/2026-03-18-runhop-phase1-mvp.md) |
-| **Phase 2** | Ready to build | [Phase 2 Social Design](../superpowers/specs/2026-04-14-runhop-phase2-social-design.md), [Phase 2 Social Plan](../superpowers/plans/2026-04-14-runhop-phase2-social.md) |
-| **Phase 3** | Roadmap only | Defined in the architecture spec |
+| **Phase 2** | Complete | [Phase 2 Social Design](../superpowers/specs/2026-04-14-runhop-phase2-social-design.md), [Phase 2 Social Plan](../superpowers/plans/2026-04-14-runhop-phase2-social.md) |
+| **Phase 3** | Ready to build | [Phase 3 Payments Design](../superpowers/specs/2026-04-16-runhop-phase3-payments-design.md) |
 | **Phase 4** | Roadmap only | Defined in the architecture spec |
 
 ## Recommended Reading Order
@@ -112,7 +112,8 @@ If you want to understand the whole system before building more:
 3. [Phase 1 MVP Plan](../superpowers/plans/2026-03-18-runhop-phase1-mvp.md)
 4. [Phase 2 Social Design](../superpowers/specs/2026-04-14-runhop-phase2-social-design.md)
 5. [Phase 2 Social Plan](../superpowers/plans/2026-04-14-runhop-phase2-social.md)
+6. [Phase 3 Payments Design](../superpowers/specs/2026-04-16-runhop-phase3-payments-design.md)
 
 ## Important Note
 
-The roadmap can evolve later, but as of now the project has **4 planned phases**. Phase 2 is the current next phase, not the entire roadmap.
+The roadmap can evolve later, but as of now the project has **4 planned phases**. Phase 3 is the current next phase, not the entire roadmap.
