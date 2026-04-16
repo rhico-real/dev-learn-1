@@ -8,6 +8,7 @@
 - **Implementation Plan**
   - [Phase 1 MVP Plan](superpowers/plans/2026-03-18-runhop-phase1-mvp.md)
   - [Phase 2 Social Plan](superpowers/plans/2026-04-14-runhop-phase2-social.md)
+  - [Phase 3 Payments Plan](superpowers/plans/2026-04-16-runhop-phase3-payments.md)
 
 - **Learning Guides**
   - [Database Concepts](guides/database-concepts.md)
