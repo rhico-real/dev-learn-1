@@ -175,7 +175,6 @@ src/domain/event/
 │   ├── payment.module.ts
 │   ├── payment.controller.ts
 │   ├── payment.service.ts
-│   ├── payment.listener.ts       # listens for registration events (free race auto-confirm)
 │   └── dto/
 │       ├── create-payment.dto.ts
 │       └── review-payment.dto.ts
