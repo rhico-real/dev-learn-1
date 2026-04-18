@@ -38,7 +38,7 @@ describe('Post Service', () => {
         }).compile();
 
         service = module.get<PostService>(PostService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     describe('create post', () => {

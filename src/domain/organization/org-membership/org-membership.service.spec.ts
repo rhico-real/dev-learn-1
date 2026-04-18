@@ -57,7 +57,7 @@ describe('OrgMembershipService', () => {
         }).compile();
 
         service = module.get<OrgMembershipService>(OrgMembershipService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     // TEST SUITE: verifyRole

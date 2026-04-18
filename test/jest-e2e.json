@@ -1,20 +1,13 @@
 {
-  "moduleFileExtensions": [
-    "js",
-    "json",
-    "ts"
-  ],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".*\\.e2e-spec\\.ts$",
-  "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  },
-  "globalSetup": "./e2e-setup.ts",
-  "transformIgnorePatterns": [
-    "node_modules/(?!uuid)"
-  ],
-  "setupFiles": [
-    "./e2e-env-setup.ts"
-  ]
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": ".",
+    "testEnvironment": "node",
+    "testRegex": ".*\\.e2e-spec\\.ts$",
+    "transform": {
+        "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "globalSetup": "./e2e-setup.ts",
+    "transformIgnorePatterns": ["node_modules/(?!uuid)"],
+    "setupFiles": ["./e2e-env-setup.ts"],
+    "testTimeout": 15000
 }

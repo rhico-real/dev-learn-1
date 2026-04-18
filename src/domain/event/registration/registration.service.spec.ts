@@ -90,7 +90,7 @@ describe('RegistrationService', () => {
         }).compile();
 
         service = module.get<RegistrationService>(RegistrationService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     // create

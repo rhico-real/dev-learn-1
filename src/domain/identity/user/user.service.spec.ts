@@ -54,7 +54,7 @@ describe('UserService', () => {
 
         // ang service na imung gina test is ang UserService only
         service = module.get<UserService>(UserService);
-        jest.clearAllMocks(); // reset fakes between tests
+        jest.resetAllMocks(); // reset fakes between tests
     });
 
     describe('findById', () => {

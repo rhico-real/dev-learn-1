@@ -4,6 +4,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { PostService } from '../post/post.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('Reaction service', () => {
     let service: ReactionService;
@@ -14,10 +15,17 @@ describe('Reaction service', () => {
             create: jest.fn(),
             delete: jest.fn(),
         },
+        postComment: {
+            findMany: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+        },
     };
 
     let mockPostService = {
         findById: jest.fn(),
+        exists: jest.fn(),
     };
 
     let mockPostRecord = {
@@ -32,17 +40,29 @@ describe('Reaction service', () => {
         userId: 'author-id-123',
     };
 
+    let mockEventEmitter = {
+        emit: jest.fn(),
+    };
+
+    let mockComment = {
+        id: 'comment-id-123',
+        postId: 'post-id-123',
+        authorId: 'author-id-123',
+        content: 'Test comment',
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 ReactionService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: PostService, useValue: mockPostService },
+                { provide: EventEmitter2, useValue: mockEventEmitter },
             ],
         }).compile();
 
         service = module.get<ReactionService>(ReactionService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     /**
@@ -106,6 +126,121 @@ describe('Reaction service', () => {
             await expect(service.unlike('like-id-123')).rejects.toThrow(
                 NotFoundException,
             );
+        });
+    });
+
+    // Get comment
+    describe('get comments', () => {
+        it('should return list of comments', async () => {
+            mockPrisma.postComment.findMany.mockResolvedValue([mockComment]);
+            const result = await service.listComments('post-id-123');
+
+            expect(result).toEqual({
+                data: [mockComment],
+                meta: {
+                    cursor: 'comment-id-123',
+                },
+            });
+        });
+    });
+
+    // Create comment
+    describe('create comment', () => {
+        it('should be able to create comment', async () => {
+            mockPostService.exists.mockResolvedValue(mockPostRecord);
+            mockEventEmitter.emit.mockReturnValue(true);
+            mockPrisma.postComment.create.mockResolvedValue(mockComment);
+
+            const result = await service.createComment(
+                'post-id-123',
+                'author-id-123',
+                { content: 'Test comment' },
+            );
+
+            expect(result).toEqual(mockComment);
+            expect(mockPrisma.postComment.create).toHaveBeenCalledWith({
+                data: {
+                    postId: 'post-id-123',
+                    authorId: 'author-id-123',
+                    content: 'Test comment',
+                },
+            });
+        });
+
+        it('should return NotFoundException if post is not found', async () => {
+            mockPostService.exists.mockResolvedValue(null);
+            await expect(
+                service.createComment('post-id-123', 'author-id-123', {
+                    content: 'Test comment',
+                }),
+            ).rejects.toThrow(NotFoundException);
+        });
+    });
+
+    // Update comment
+    describe('update comment', () => {
+        it('should be able to update comment', async () => {
+            mockPrisma.postComment.update.mockResolvedValue({
+                ...mockComment,
+                content: 'Updated comment',
+            });
+
+            const result = await service.updateComment(
+                'comment-id-123',
+                'author-id-123',
+                { content: 'Updated comment' },
+            );
+
+            expect(result).toEqual({
+                ...mockComment,
+                content: 'Updated comment',
+            });
+        });
+
+        it('should return NotFoundException if comment not found', async () => {
+            const error = new Prisma.PrismaClientKnownRequestError(
+                'Record not found',
+                { code: 'P2025', clientVersion: '5.0.0' },
+            );
+
+            mockPrisma.postComment.update.mockRejectedValue(error);
+
+            await expect(
+                service.updateComment('comment-id-123', 'author-id-123', {
+                    content: 'Updated comment',
+                }),
+            ).rejects.toThrow(NotFoundException);
+        });
+    });
+
+    // Delete comment
+    describe('delete comment', () => {
+        it('should be able to delete comment', async () => {
+            mockPrisma.postComment.update.mockResolvedValue({
+                ...mockComment,
+                deletedAt: new Date('2026-04-17T01:36:59.185Z'),
+            });
+            const result = await service.removeComment(
+                'comment-id-123',
+                'author-id-123',
+            );
+            expect(result).toEqual({
+                ...mockComment,
+                deletedAt: new Date('2026-04-17T01:36:59.185Z'),
+            });
+        });
+
+        it('should return NotFoundException if comment not found', async () => {
+            const error = new Prisma.PrismaClientKnownRequestError(
+                'Record not found',
+                { code: 'P2025', clientVersion: '5.0.0' },
+            );
+
+            mockPrisma.postComment.update.mockRejectedValue(error);
+
+            await expect(
+                service.removeComment('comment-id-123', 'author-id-123'),
+            ).rejects.toThrow(NotFoundException);
         });
     });
 });

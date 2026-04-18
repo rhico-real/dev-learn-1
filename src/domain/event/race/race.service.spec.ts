@@ -70,7 +70,7 @@ describe('RaceService', () => {
         }).compile();
 
         service = module.get<RaceService>(RaceService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     // list by event

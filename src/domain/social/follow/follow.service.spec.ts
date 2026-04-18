@@ -72,7 +72,7 @@ describe('Follow Service', () => {
         }).compile();
 
         service = module.get<FollowService>(FollowService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     /**

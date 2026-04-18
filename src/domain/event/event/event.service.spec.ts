@@ -94,7 +94,7 @@ describe('EventService', () => {
         }).compile();
 
         service = module.get<EventService>(EventService);
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     /**
