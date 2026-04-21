@@ -549,14 +549,24 @@ export class ReactionService {
     }
   }
 
-  async unlike(likeId: string, userId: string) {
-    await this.ownershipLikeCheck(likeId, userId);
-
-    return this.prisma.postLike.delete({ where: { id: likeId } });
+  async unlike(likeId: string) {
+    try {
+      return await this.prisma.postLike.delete({
+        where: { id: likeId },
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Like record does not exist');
+      }
+      throw error;
+    }
   }
 
-  async comment(postId: string, userId: string, dto: CreateCommentDto) {
-    const post = await this.postService.findById(postId);
+  async createComment(postId: string, userId: string, dto: CreateCommentDto) {
+    const post = await this.postService.exists(postId);
 
     if (!post) throw new NotFoundException('Post not found');
 
@@ -583,21 +593,35 @@ export class ReactionService {
     userId: string,
     dto: UpdateCommentDto,
   ) {
-    await this.ownershipCommentCheck(commentId, userId);
-
-    return this.prisma.postComment.update({
-      where: { id: commentId },
-      data: { content: dto.content },
-    });
+    try {
+      return await this.prisma.postComment.update({
+        where: { id: commentId, authorId: userId },
+        data: { content: dto.content },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Comment not found');
+      }
+    }
   }
 
-  async deleteComment(commentId: string, userId: string) {
-    await this.ownershipCommentCheck(commentId, userId);
-
-    return this.prisma.postComment.update({
-      where: { id: commentId },
-      data: { deletedAt: new Date() },
-    });
+  async removeComment(commentId: string, userId: string) {
+    try {
+      return await this.prisma.postComment.update({
+        where: { id: commentId, authorId: userId },
+        data: { deletedAt: new Date() },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Comment not found');
+      }
+    }
   }
 
   async listComments(postId: string, cursor?: string, take: number = 20) {
@@ -641,17 +665,15 @@ async createLikeNotification(dto: CreateNotificationDto) { ... }
 async createCommentNotification(dto: CreateNotificationDto) { ... }
 ```
 
-Also remove `PostService` from the constructor if it is no longer used after this step.
+- [ ] **Step 4: Register NotificationProcessor in NotificationModule**
 
-- [ ] **Step 4: Register NotificationProcessor in the social context**
-
-Open `src/domain/social/social-context.module.ts`. Import and declare `NotificationProcessor`:
+Open `src/domain/social/notification/notification.module.ts`. Import and add `NotificationProcessor` to `providers`:
 
 ```typescript
-import { NotificationProcessor } from '../../infrastructure/queue/processors/notification.processor';
+import { NotificationProcessor } from '../../../infrastructure/queue/processors/notification.processor';
 ```
 
-Add `NotificationProcessor` to the `providers` array of `SocialContextModule`.
+Add `NotificationProcessor` to the `providers` array of `NotificationModule`.
 
 - [ ] **Step 5: Verify the app starts and a like creates a notification via queue**
 
@@ -677,7 +699,7 @@ Expected: all tests pass. If reaction service tests fail due to the constructor 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/domain/social/reaction/ src/domain/social/notification/ src/domain/social/social-context.module.ts
+git add src/domain/social/reaction/ src/domain/social/notification/
 git commit -m "feat: replace EventEmitter with BullMQ queue in ReactionService"
 ```
 
@@ -728,15 +750,15 @@ export class RegistrationProcessor extends WorkerHost {
 }
 ```
 
-- [ ] **Step 2: Register RegistrationProcessor in the social context module**
+- [ ] **Step 2: Register RegistrationProcessor in RegistrationModule**
 
-Open `src/domain/social/social-context.module.ts`. Import and add to `providers`:
+Open `src/domain/event/registration/registration.module.ts`. Import and add `RegistrationProcessor` to `providers`:
 
 ```typescript
-import { RegistrationProcessor } from '../../infrastructure/queue/processors/registration.processor';
+import { RegistrationProcessor } from '../../../infrastructure/queue/processors/registration.processor';
 ```
 
-Add `RegistrationProcessor` to the `providers` array.
+Add `RegistrationProcessor` to the `providers` array of `RegistrationModule`.
 
 - [ ] **Step 3: Verify app still starts**
 
@@ -749,7 +771,7 @@ Expected: starts cleanly. Stop with Ctrl+C.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/infrastructure/queue/processors/registration.processor.ts src/domain/social/social-context.module.ts
+git add src/infrastructure/queue/processors/registration.processor.ts src/domain/event/registration/registration.module.ts
 git commit -m "feat: add RegistrationProcessor stub for Phase 3 payment confirmation"
 ```
 
