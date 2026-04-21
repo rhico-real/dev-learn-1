@@ -101,7 +101,7 @@ Right now, your docs status looks like this:
 | **Phase 1** | Complete | [Phase 1 MVP Plan](../superpowers/plans/2026-03-18-runhop-phase1-mvp.md) |
 | **Phase 2** | Complete | [Phase 2 Social Design](../superpowers/specs/2026-04-14-runhop-phase2-social-design.md), [Phase 2 Social Plan](../superpowers/plans/2026-04-14-runhop-phase2-social.md) |
 | **Phase 3** | Ready to build | [Phase 3 Payments Design](../superpowers/specs/2026-04-16-runhop-phase3-payments-design.md), [Phase 3 Payments Plan](../superpowers/plans/2026-04-16-runhop-phase3-payments.md) |
-| **Phase 4** | Roadmap only | Defined in the architecture spec |
+| **Phase 4** | Planning | [Phase 4 Scale Design](../superpowers/specs/2026-04-21-runhop-phase4-scale-design.md) |
 
 ## Recommended Reading Order
 
