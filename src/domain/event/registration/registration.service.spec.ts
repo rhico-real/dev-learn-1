@@ -91,6 +91,12 @@ describe('RegistrationService', () => {
 
         service = module.get<RegistrationService>(RegistrationService);
         jest.resetAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     // create

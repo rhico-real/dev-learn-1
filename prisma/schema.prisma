@@ -47,6 +47,18 @@ enum NotificationType {
   POST_COMMENTED
 }
 
+enum PaymentMethod {
+  GCASH
+  MAYA
+}
+
+enum PaymentStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
 model User {
   id          String     @id @default(uuid())
   email       String     @unique
@@ -158,6 +170,8 @@ model Registration {
 
   registeredAt DateTime @default(now())
 
+  payments Payment[]
+
   @@unique([userId, raceId])
   @@index([raceId, status])
   @@index([userId])
@@ -249,4 +263,29 @@ model Notification {
 
   @@index([recipientId, createdAt])
   @@index([recipientId, readAt])
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  registration   Registration @relation(fields: [registrationId], references: [id])
+  registrationId String
+
+  method   PaymentMethod
+  amount   Int
+  currency String        @default("PHP")
+
+  proofImage String
+
+  status PaymentStatus @default(SUBMITTED)
+
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([registrationId, status])
+  @@index([status, createdAt])
 }

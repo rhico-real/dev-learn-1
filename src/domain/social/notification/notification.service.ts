@@ -9,7 +9,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { PostService } from '../post/post.service';
 import { NotificationType, Prisma } from '@prisma/client';
 import { OnEvent } from '@nestjs/event-emitter';
-import { NotificationEventTypes } from './notification-events';
+import { NotificationEventTypes } from '../../../common/notification-events';
 
 @Injectable()
 export class NotificationService {

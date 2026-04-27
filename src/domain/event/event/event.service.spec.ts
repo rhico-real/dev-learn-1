@@ -95,6 +95,12 @@ describe('EventService', () => {
 
         service = module.get<EventService>(EventService);
         jest.resetAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     /**

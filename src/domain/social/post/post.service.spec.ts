@@ -39,6 +39,12 @@ describe('Post Service', () => {
 
         service = module.get<PostService>(PostService);
         jest.resetAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     describe('create post', () => {

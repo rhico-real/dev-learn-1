@@ -11,7 +11,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { NotificationEventTypes } from '../notification/notification-events';
+import { NotificationEventTypes } from '../../../common/notification-events';
 
 @Injectable()
 export class ReactionService {

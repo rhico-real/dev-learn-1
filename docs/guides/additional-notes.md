@@ -116,6 +116,15 @@ The global exception filter catches these and formats the response as:
 
 These are the Prisma query patterns that come up constantly in services. Most confusion comes from mixing up what gets returned, what gets included, and what gets counted.
 
+---
+
+## TypeScript `readonly`
+
+Mentor rule of thumb:
+
+- Use `readonly` for IDs, injected services, config-like values, and properties that should not change after setup.
+- Do not use it on values that are expected to be reassigned during normal object lifecycle.
+
 ### `select` vs `include`
 
 - `select` means: return only the fields you explicitly ask for

@@ -54,9 +54,14 @@ describe('UserService', () => {
 
         // ang service na imung gina test is ang UserService only
         service = module.get<UserService>(UserService);
-        jest.resetAllMocks(); // reset fakes between tests
+        jest.resetAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
     });
 
+    afterEach(() => {
+        jest.useRealTimers();
+    });
     describe('findById', () => {
         it('should return user without password', async () => {
             // 1. ARRANGE: tell the fake what to return

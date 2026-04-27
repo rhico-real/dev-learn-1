@@ -58,6 +58,12 @@ describe('OrgMembershipService', () => {
 
         service = module.get<OrgMembershipService>(OrgMembershipService);
         jest.resetAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     // TEST SUITE: verifyRole

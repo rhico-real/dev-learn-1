@@ -3,6 +3,7 @@ import { RaceModule } from './race/race.module';
 import { RegistrationModule } from './registration/registration.module';
 import { OrganizationContextModule } from '../organization/organization-context.module';
 import { EventModule } from './event/event.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
     imports: [
@@ -10,7 +11,8 @@ import { EventModule } from './event/event.module';
         RaceModule,
         RegistrationModule,
         OrganizationContextModule,
+        PaymentModule,
     ],
-    exports: [EventModule, RaceModule, RegistrationModule],
+    exports: [EventModule, RaceModule, RegistrationModule, PaymentModule],
 })
 export class EventContextModule {}
