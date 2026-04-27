@@ -8,6 +8,9 @@ import {
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { RaceService } from '../race/race.service';
 import { Prisma, RegistrationStatus } from '@prisma/client';
+import { OnEvent } from '@nestjs/event-emitter';
+import { NotificationEventTypes } from '../../../common/notification-events';
+import { ConfigService } from '@nestjs/config';
 
 const registrationStatus: Record<string, RegistrationStatus> = {
     PENDING: RegistrationStatus.PENDING,
@@ -19,6 +22,7 @@ export class RegistrationService {
     constructor(
         private prisma: PrismaService,
         private raceService: RaceService,
+        private readonly configService: ConfigService,
     ) {}
     /**
      * Registration
@@ -40,18 +44,16 @@ export class RegistrationService {
         });
 
         // check event
-        if (race?.event.status !== 'PUBLISHED') {
+        if (race?.event.status !== 'PUBLISHED')
             throw new BadRequestException(
                 'Event is not yet open for registration.',
             );
-        }
 
         // check capacity if full
         const capacity = await this.raceService.checkCapacity(raceId);
 
-        if (!capacity.available) {
+        if (!capacity.available)
             throw new BadRequestException('Race is at full capacity.');
-        }
 
         // create registration
         try {
@@ -59,6 +61,9 @@ export class RegistrationService {
                 data: {
                     userId,
                     raceId,
+                    ...(race.price === 0
+                        ? { status: RegistrationStatus.CONFIRMED }
+                        : {}),
                 },
             });
         } catch (error) {
@@ -215,5 +220,33 @@ export class RegistrationService {
                 id,
             },
         });
+    }
+
+    @OnEvent(NotificationEventTypes.PAYMENT_APPROVED)
+    async handlePaymentApprovedEvent(event: {
+        paymentId: string;
+        registrationId: string;
+    }) {
+        await this.prisma.registration.update({
+            where: { id: event.registrationId },
+            data: { status: 'CONFIRMED' },
+        });
+    }
+
+    @OnEvent(NotificationEventTypes.PAYMENT_REJECTED)
+    async handlePaymentRejectedEvent(event: {
+        paymentId: string;
+        registrationId: string;
+        rejectionCount: number;
+    }) {
+        if (
+            event.rejectionCount >=
+            this.configService.get<number>('MAX_PAYMENT_ATTEMPTS', 3)
+        ) {
+            await this.prisma.registration.update({
+                where: { id: event.registrationId },
+                data: { status: 'CANCELLED' },
+            });
+        }
     }
 }

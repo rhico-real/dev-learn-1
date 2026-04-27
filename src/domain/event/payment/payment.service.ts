@@ -11,14 +11,14 @@ import { PaymentStatus, Prisma } from '@prisma/client';
 import { ReviewAction, ReviewPaymentDto } from './dto/review-payment.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationEventTypes } from '../../../common/notification-events';
-
-const MAX_PAYMENT_ATTEMPTS = 3;
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PaymentService {
     constructor(
         private prisma: PrismaService,
         private eventEmitter: EventEmitter2,
+        private readonly configService: ConfigService,
     ) {}
 
     async create(
@@ -49,7 +49,7 @@ export class PaymentService {
         // BadRequestException: Payment can only be submitted for pending registration
         if (registration.status !== 'PENDING')
             throw new BadRequestException(
-                'Payment can only be submitted for pending registration',
+                `Payment can only be submitted for pending registration. Current status: ${registration.status}`,
             );
 
         // count rejected payments
@@ -60,7 +60,10 @@ export class PaymentService {
         });
 
         // if rejected >= max payment attempts: Bad Request: Maximum payment attempts reached
-        if (rejectedCount >= MAX_PAYMENT_ATTEMPTS)
+        if (
+            rejectedCount >=
+            this.configService.get<number>('MAX_PAYMENT_ATTEMPTS', 3)
+        )
             throw new BadRequestException('Maximum payment attempts reached');
 
         // check payment via registrationId for active Payment (submitted or under-review)

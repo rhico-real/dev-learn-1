@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module';
 import request from 'supertest';
-import { Registration } from '@prisma/client';
+import { Registration, RegistrationStatus } from '@prisma/client';
 
 describe('Registration (e2e)', () => {
     let app: INestApplication;
@@ -49,6 +49,8 @@ describe('Registration (e2e)', () => {
     // admin confirms a registration
 
     describe('Register a race', () => {
+        let freeRaceId: string;
+
         beforeAll(async () => {
             // create a user
             const owner = await request(app.getHttpServer())
@@ -98,6 +100,20 @@ describe('Registration (e2e)', () => {
 
             raceId = race.body.data.id;
 
+            // create a free race
+            const freeRace = await request(app.getHttpServer())
+                .post(`/api/v1/events/${eventId}/races`)
+                .set('Authorization', `Bearer ${ownerAccessToken}`)
+                .send({
+                    name: 'Registration Free Race Test',
+                    distance: 123.45,
+                    unit: 'test-unit',
+                    maxParticipants: 500,
+                    price: 0,
+                });
+
+            freeRaceId = freeRace.body.data.id;
+
             // publish the event
             const publish = await request(app.getHttpServer())
                 .patch(`/api/v1/events/${eventId}/status`)
@@ -143,6 +159,18 @@ describe('Registration (e2e)', () => {
             registrationId = result.body.data.id;
 
             expect(result.statusCode).toBe(201);
+        });
+
+        it('should be able to have a confirmed registration of a free race', async () => {
+            const result = await request(app.getHttpServer())
+                .post(`/api/v1/races/${freeRaceId}/registrations`)
+                .set('Authorization', `Bearer ${ownerAccessToken}`)
+                .send({});
+
+            registrationId = result.body.data.id;
+
+            expect(result.statusCode).toBe(201);
+            expect(result.body.data.status).toBe(RegistrationStatus.CONFIRMED);
         });
 
         it('should return 409 if I register again', async () => {
@@ -383,6 +411,17 @@ describe('Registration (e2e)', () => {
                 .send({});
 
             expect(result.statusCode).toBe(200);
+        });
+    });
+
+    describe('Find by Id', () => {
+        it('should return registration by id', async () => {
+            const res = await request(app.getHttpServer())
+                .get(`/api/v1/registrations/${registrationId}`)
+                .set('Authorization', `Bearer ${ownerAccessToken}`);
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.data.id).toBe(registrationId);
         });
     });
 });

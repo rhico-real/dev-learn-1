@@ -69,6 +69,12 @@ describe('AuthService', () => {
 
         service = module.get<AuthService>(AuthService);
         jest.clearAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     describe('register', () => {

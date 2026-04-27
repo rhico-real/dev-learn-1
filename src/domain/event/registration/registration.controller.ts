@@ -100,4 +100,29 @@ export class RegistrationController {
     ) {
         return this.registrationService.cancel(id, user.userId);
     }
+
+    @Get('/registrations/:id')
+    async findById(
+        @CurrentUser() user: interfaces.AuthenticatedUser,
+        @Param('id') id: string,
+    ) {
+        // if not super_admin, must be either admin or user itself
+        const registration = await this.registrationService.findById(id);
+
+        if (
+            registration &&
+            (user.role !== 'SUPER_ADMIN' || user.userId !== registration.userId)
+        ) {
+            const race = await this.raceService.findRaceByEvent(
+                registration.raceId,
+            );
+            await this.orgMembershipService.verifyRole(
+                user.userId,
+                race!.event.orgId,
+                'ADMIN',
+            );
+        }
+
+        return registration;
+    }
 }

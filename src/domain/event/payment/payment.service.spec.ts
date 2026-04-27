@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ReviewAction } from './dto/review-payment.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ConfigService } from '@nestjs/config';
 
 describe('PaymentService', () => {
     let service: PaymentService;
@@ -63,12 +64,17 @@ describe('PaymentService', () => {
         emit: jest.fn(),
     };
 
+    let mockConfigService = {
+        get: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 PaymentService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: EventEmitter2, useValue: mockEvent },
+                { provide: ConfigService, useValue: mockConfigService },
             ],
         }).compile();
 

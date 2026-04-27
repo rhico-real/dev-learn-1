@@ -125,6 +125,63 @@ Mentor rule of thumb:
 - Use `readonly` for IDs, injected services, config-like values, and properties that should not change after setup.
 - Do not use it on values that are expected to be reassigned during normal object lifecycle.
 
+---
+
+## How To Read Unfamiliar NestJS Syntax
+
+When you see syntax you do not recognize, classify it first before searching docs.
+
+- Starts with `@` like `@OnEvent(...)`: framework decorator syntax
+- Inside a function parameter like `event: { registrationId: string }`: TypeScript type annotation
+- Object passed into `emit(...)`: runtime payload object
+
+Example:
+
+```typescript
+@OnEvent('payment.approved')
+async handlePaymentApprovedEvent(event: {
+  paymentId: string;
+  registrationId: string;
+}) {
+  await this.prisma.registration.update({
+    where: { id: event.registrationId },
+    data: { status: 'CONFIRMED' },
+  });
+}
+```
+
+How to read that example:
+
+- `@OnEvent('payment.approved')` means NestJS should call this method when that event is emitted
+- `handlePaymentApprovedEvent` is just the method name
+- `event` is just the parameter name
+- `: { paymentId: string; registrationId: string }` is the TypeScript type for the event payload
+
+Matching emitter example:
+
+```typescript
+this.eventEmitter.emit('payment.approved', {
+  paymentId: payment.id,
+  registrationId: payment.registrationId,
+});
+```
+
+That emitted object becomes the `event` argument in the listener.
+
+Good search terms when learning:
+
+- `NestJS OnEvent`
+- `@nestjs/event-emitter OnEvent`
+- `NestJS eventEmitter emit`
+- `TypeScript function parameter type`
+- `TypeScript inline object type`
+
+Mentor shortcut:
+
+- Decorator = NestJS docs
+- Type after `:` = TypeScript docs
+- Object inside `emit(...)` = the payload shape your own code sends
+
 ### `select` vs `include`
 
 - `select` means: return only the fields you explicitly ask for

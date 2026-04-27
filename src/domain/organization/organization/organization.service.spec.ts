@@ -50,6 +50,12 @@ describe('OrganizationService', () => {
 
         service = module.get<OrganizationService>(OrganizationService);
         jest.clearAllMocks();
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-27T07:32:11.223Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     // TEST SUITE: create

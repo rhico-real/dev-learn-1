@@ -18,6 +18,8 @@ import { PaginationQueryDTO } from '../../../shared/dto/pagination-query.dto';
 import { RegistrationService } from '../registration/registration.service';
 import { OrgMembershipService } from '../../organization/org-membership/org-membership.service';
 import { RaceService } from '../race/race.service';
+import { EventService } from '../event/event.service';
+import { ReviewPaymentDto } from './dto/review-payment.dto';
 
 @Controller()
 export class PaymentController {
@@ -26,6 +28,7 @@ export class PaymentController {
         private readonly registrationService: RegistrationService,
         private readonly raceService: RaceService,
         private readonly orgMembershipService: OrgMembershipService,
+        private readonly eventService: EventService,
     ) {}
 
     @Post('/registrations/:id/payments')
@@ -41,7 +44,7 @@ export class PaymentController {
     async listByRegistration(
         @CurrentUser() user: interfaces.AuthenticatedUser,
         @Param('id') registrationId: string,
-        @Query() dto: PaginationQueryDTO,
+        @Query() dto?: PaginationQueryDTO,
     ) {
         const registration =
             await this.registrationService.findById(registrationId);
@@ -54,8 +57,8 @@ export class PaymentController {
 
         return this.paymentService.listByRegistration(
             registrationId,
-            dto.cursor,
-            dto.limit,
+            dto?.cursor,
+            dto?.limit,
         );
     }
 
@@ -86,5 +89,55 @@ export class PaymentController {
         }
 
         return payment;
+    }
+
+    @Get('/events/:eventId/payments')
+    async listByEvent(
+        @CurrentUser() user: interfaces.AuthenticatedUser,
+        @Param('eventId') eventId: string,
+        @Query('status') status?: string,
+        @Query() dto?: PaginationQueryDTO,
+    ) {
+        if (user.role !== 'SUPER_ADMIN') {
+            const event = await this.eventService.findById(eventId);
+            await this.orgMembershipService.verifyRole(
+                user.userId,
+                event.orgId,
+                'ADMIN',
+            );
+        }
+
+        return this.paymentService.listByEvent(
+            eventId,
+            status,
+            dto?.cursor,
+            dto?.limit,
+        );
+    }
+
+    @Patch('/payments/:id/review')
+    async review(
+        @CurrentUser() reviewer: interfaces.AuthenticatedUser,
+        @Param('id') paymentId: string,
+        @Body() dto: ReviewPaymentDto,
+    ) {
+        // if not super admin -> verify role
+        if (reviewer.role !== 'SUPER_ADMIN') {
+            const payment = await this.paymentService.findById(paymentId);
+            const registration = await this.registrationService.findById(
+                payment.registrationId,
+            );
+            const race = await this.raceService.findRaceByEvent(
+                registration!.raceId,
+            );
+
+            await this.orgMembershipService.verifyRole(
+                reviewer.userId,
+                race!.event.orgId,
+                'ADMIN',
+            );
+        }
+
+        return this.paymentService.review(reviewer.userId, paymentId, dto);
     }
 }

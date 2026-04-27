@@ -2,7 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RegistrationService } from './registration.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { RaceService } from '../race/race.service';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+} from '@nestjs/common';
+import { Prisma, RegistrationStatus } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 describe('RegistrationService', () => {
     let service: RegistrationService;
@@ -21,6 +27,10 @@ describe('RegistrationService', () => {
 
     const mockRaceService = {
         checkCapacity: jest.fn(),
+    };
+
+    const mockConfigService = {
+        get: jest.fn(),
     };
 
     const mockEvent = {
@@ -86,6 +96,7 @@ describe('RegistrationService', () => {
                 RegistrationService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: RaceService, useValue: mockRaceService },
+                { provide: ConfigService, useValue: mockConfigService },
             ],
         }).compile();
 
@@ -119,6 +130,28 @@ describe('RegistrationService', () => {
             });
         });
 
+        it('should be able to create confirmed registration if race is free', async () => {
+            mockPrisma.race.findUnique.mockResolvedValue({
+                ...mockRace,
+                price: 0,
+            });
+            mockRaceService.checkCapacity.mockResolvedValue(
+                mockCapacityAvailable,
+            );
+            mockPrisma.registration.create.mockResolvedValue(mockRegistration);
+
+            const result = await service.create('user-id-123', 'race-id-123');
+
+            expect(result).toEqual(mockRegistration);
+            expect(mockPrisma.registration.create).toHaveBeenCalledWith({
+                data: {
+                    userId: 'user-id-123',
+                    raceId: 'race-id-123',
+                    status: RegistrationStatus.CONFIRMED,
+                },
+            });
+        });
+
         // should return BadRequestException if event is not published
         it('should return BadRequestException if event is not published', async () => {
             mockPrisma.race.findUnique.mockResolvedValue(
@@ -139,6 +172,24 @@ describe('RegistrationService', () => {
             await expect(
                 service.create('user-id-123', 'race-id-123'),
             ).rejects.toThrow(BadRequestException);
+        });
+
+        it('should return ConflictException if user already registered on race', async () => {
+            mockPrisma.race.findUnique.mockResolvedValue(mockRace);
+            mockRaceService.checkCapacity.mockResolvedValue(
+                mockCapacityAvailable,
+            );
+
+            const prismaError = new Prisma.PrismaClientKnownRequestError(
+                'Unique constraint failed on the fields: (userId, orgId)',
+                { code: 'P2002', clientVersion: '5.0.0' },
+            );
+
+            mockPrisma.registration.create.mockRejectedValue(prismaError);
+
+            await expect(
+                service.create('user-id-123', 'race-id-123'),
+            ).rejects.toThrow(ConflictException);
         });
     });
 
