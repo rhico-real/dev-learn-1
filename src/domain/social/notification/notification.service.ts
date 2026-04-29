@@ -3,13 +3,8 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import { PostService } from '../post/post.service';
-import { NotificationType, Prisma } from '@prisma/client';
-import { OnEvent } from '@nestjs/event-emitter';
-import { NotificationEventTypes } from '../../../common/notification-events';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class NotificationService {
@@ -37,49 +32,6 @@ export class NotificationService {
             );
 
         return notification;
-    }
-
-    @OnEvent(NotificationEventTypes.POST_LIKE)
-    async createLikeNotification(dto: CreateNotificationDto) {
-        const post = await this.prisma.post.findUnique({
-            where: { id: dto.postId },
-            select: { authorId: true },
-        });
-
-        if (!post) throw new NotFoundException('Post not found');
-
-        if (post.authorId === dto.actorId) return null;
-
-        return this.prisma.notification.create({
-            data: {
-                recipientId: post.authorId,
-                actorId: dto.actorId,
-                postId: dto.postId,
-                type: NotificationType.POST_LIKED,
-            },
-        });
-    }
-
-    @OnEvent(NotificationEventTypes.POST_COMMENT)
-    async createCommentNotification(dto: CreateNotificationDto) {
-        const post = await this.prisma.post.findUnique({
-            where: { id: dto.postId },
-            select: { authorId: true },
-        });
-
-        if (!post) throw new NotFoundException('Post not found');
-
-        if (post.authorId === dto.actorId) return null;
-
-        return this.prisma.notification.create({
-            data: {
-                recipientId: post.authorId,
-                actorId: dto.actorId,
-                postId: dto.postId,
-                commentId: dto.commentId,
-                type: NotificationType.POST_COMMENTED,
-            },
-        });
     }
 
     async listForUser(userId: string, cursor?: string, take: number = 20) {

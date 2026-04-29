@@ -12,6 +12,7 @@ import { EventContextModule } from './domain/event/event-context.module';
 import { SocialContextModule } from './domain/social/social-context.module';
 import { HealthModule } from './health/health.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { QueueModel } from './infrastructure/queue/queue.model';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
         SocialContextModule,
         HealthModule,
         EventEmitterModule.forRoot(),
+        QueueModel,
     ],
     providers: [
         {

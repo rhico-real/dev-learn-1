@@ -11,7 +11,13 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { NotificationEventTypes } from '../../../common/notification-events';
+import { InjectQueue } from '@nestjs/bullmq';
+import {
+    NOTIFICATION_JOB,
+    QUEUE_NAMES,
+} from '../../../infrastructure/queue/queue.constants';
+import { Queue } from 'bullmq';
+import { NotificationJobTypes } from '../../../common/notification-events';
 
 @Injectable()
 export class ReactionService {
@@ -19,6 +25,7 @@ export class ReactionService {
         private prisma: PrismaService,
         private postService: PostService,
         private eventEmitter: EventEmitter2,
+        @InjectQueue(QUEUE_NAMES.NOTIFICATION) private notificationQueue: Queue,
     ) {}
     /**
      * Like a post
@@ -70,7 +77,8 @@ export class ReactionService {
                 },
             });
 
-            this.eventEmitter.emit(NotificationEventTypes.POST_LIKE, {
+            await this.notificationQueue.add(NOTIFICATION_JOB.CREATE, {
+                type: NotificationJobTypes.POST_LIKE,
                 actorId: userId,
                 postId,
             });
@@ -121,7 +129,8 @@ export class ReactionService {
             },
         });
 
-        this.eventEmitter.emit(NotificationEventTypes.POST_COMMENT, {
+        await this.notificationQueue.add(NOTIFICATION_JOB.CREATE, {
+            type: NotificationJobTypes.POST_COMMENT,
             actorId: userId,
             postId,
             commentId: comment.id,

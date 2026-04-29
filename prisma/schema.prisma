@@ -45,6 +45,8 @@ enum TargetType {
 enum NotificationType {
   POST_LIKED
   POST_COMMENTED
+  FOLLOW
+  PAYMENT_APPROVED
 }
 
 enum PaymentMethod {
@@ -57,6 +59,11 @@ enum PaymentStatus {
   UNDER_REVIEW
   APPROVED
   REJECTED
+}
+
+enum Platform {
+  IOS
+  ANDROID
 }
 
 model User {
@@ -78,6 +85,7 @@ model User {
   postLikes     PostLike[]
   postComments  PostComment[]
   notifications Notification[]
+  deviceTokens  DeviceToken[]
 }
 
 model Organization {
@@ -288,4 +296,17 @@ model Payment {
 
   @@index([registrationId, status])
   @@index([status, createdAt])
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String
+  platform  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
 }

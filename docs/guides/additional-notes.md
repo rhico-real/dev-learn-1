@@ -182,6 +182,222 @@ Mentor shortcut:
 - Type after `:` = TypeScript docs
 - Object inside `emit(...)` = the payload shape your own code sends
 
+---
+
+## TypeScript `keyof`, `typeof`, and `keyof typeof`
+
+These are type-level tools. They help TypeScript reuse information from code you already wrote instead of making you declare the same thing twice.
+
+### `typeof`
+
+In normal JavaScript, `typeof value` gives runtime strings like `"string"` or `"number"`.
+
+In TypeScript type positions, `typeof` means:
+
+- "take the type of this existing variable/object/function"
+
+Example:
+
+```typescript
+const user = {
+  id: 'u1',
+  age: 25,
+};
+
+type User = typeof user;
+```
+
+`User` becomes:
+
+```typescript
+type User = {
+  id: string;
+  age: number;
+};
+```
+
+So `typeof` lets you say:
+
+- "I already made the value. Please infer its type from that."
+
+### `keyof`
+
+`keyof` takes an object type and returns a union of its keys.
+
+Example:
+
+```typescript
+type User = {
+  id: string;
+  age: number;
+};
+
+type UserKeys = keyof User;
+```
+
+`UserKeys` becomes:
+
+```typescript
+type UserKeys = 'id' | 'age';
+```
+
+So `keyof` means:
+
+- "give me the allowed property names of this type"
+
+This is useful when a function should only accept valid keys:
+
+```typescript
+type User = {
+  id: string;
+  age: number;
+};
+
+function getField(user: User, key: keyof User) {
+  return user[key];
+}
+```
+
+Now `key` can only be `'id'` or `'age'`.
+
+### `keyof typeof`
+
+This is the common combo.
+
+It means:
+
+- `typeof someObject` -> get the type of the object
+- `keyof ...` -> get the keys from that object type
+
+Example:
+
+```typescript
+const NotificationJobTypes = {
+  WELCOME: 'WELCOME',
+  REMINDER: 'REMINDER',
+  RESULT: 'RESULT',
+};
+
+type NotificationJobTypeKey = keyof typeof NotificationJobTypes;
+```
+
+`NotificationJobTypeKey` becomes:
+
+```typescript
+type NotificationJobTypeKey = 'WELCOME' | 'REMINDER' | 'RESULT';
+```
+
+Plain English:
+
+- "look at this actual object value, then give me the names of its properties"
+
+### Important: Keys vs Values
+
+This is where people get confused.
+
+Given:
+
+```typescript
+const Roles = {
+  ADMIN: 'admin',
+  USER: 'user',
+};
+```
+
+`keyof typeof Roles` gives the keys:
+
+```typescript
+type RoleKey = keyof typeof Roles;
+// 'ADMIN' | 'USER'
+```
+
+That is not the same as the values:
+
+```typescript
+type RoleValue = (typeof Roles)[keyof typeof Roles];
+// 'admin' | 'user'
+```
+
+Read that second one like this:
+
+- `typeof Roles` -> the object type
+- `keyof typeof Roles` -> all keys of that object
+- `(typeof Roles)[...]` -> get the value types at those keys
+
+So:
+
+- `keyof typeof X` = key names
+- `(typeof X)[keyof typeof X]` = value union
+
+### Why This Is Useful
+
+It keeps runtime values and TypeScript types in sync.
+
+Without this pattern, you might write:
+
+```typescript
+type Role = 'admin' | 'user';
+```
+
+and separately:
+
+```typescript
+const Roles = {
+  ADMIN: 'admin',
+  USER: 'user',
+};
+```
+
+That duplicates knowledge. If you later add `MODERATOR` to the object but forget to update the type, your code drifts.
+
+With `typeof` and `keyof`, the type comes from the source of truth.
+
+### Real Mental Model
+
+Use this shortcut:
+
+- `typeof` = "what is the type of this value?"
+- `keyof` = "what keys does this type have?"
+- `keyof typeof` = "what keys does this actual object have?"
+
+### Additional Notes
+
+- `keyof` works on types, not values. You cannot do `keyof user` if `user` is a variable. You need `keyof typeof user`.
+- `typeof` in a type position is different from JavaScript runtime `typeof`. Same word, different job.
+- If you want exact string literal values instead of widened `string`, use `as const`.
+
+Example:
+
+```typescript
+const Roles = {
+  ADMIN: 'admin',
+  USER: 'user',
+} as const;
+
+type RoleValue = (typeof Roles)[keyof typeof Roles];
+// 'admin' | 'user'
+```
+
+Without `as const`, TypeScript often widens values to just `string`, which is less useful.
+- This pattern is a lightweight alternative to enums in many TypeScript codebases.
+- When you see `SomeType[keyof SomeType]`, think: "union of all value types in this object type."
+
+Small comparison:
+
+```typescript
+enum RoleEnum {
+  ADMIN = 'admin',
+  USER = 'user',
+}
+
+const RoleMap = {
+  ADMIN: 'admin',
+  USER: 'user',
+} as const;
+```
+
+Both can model a fixed set of values. Many teams prefer the object + `as const` pattern because it is simple, flexible, and works naturally with plain JavaScript objects.
+
 ### `select` vs `include`
 
 - `select` means: return only the fields you explicitly ask for
