@@ -1,0 +1,13 @@
+meta {
+  name: Create Registration
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/races/{{raceId}}/registrations
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

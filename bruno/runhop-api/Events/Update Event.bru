@@ -1,0 +1,23 @@
+meta {
+  name: Update Event
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "RunHop 10K Festival Updated",
+    "description": "Updated event details.",
+    "location": "Quezon City"
+  }
+}

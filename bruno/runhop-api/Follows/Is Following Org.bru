@@ -1,0 +1,13 @@
+meta {
+  name: Is Following Org
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/isFollowing/{{userId}}/{{orgId}}/org
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

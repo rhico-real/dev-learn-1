@@ -9,16 +9,20 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { PaymentStatus, Prisma } from '@prisma/client';
 import { ReviewAction, ReviewPaymentDto } from './dto/review-payment.dto';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { NotificationEventTypes } from '../../../common/notification-events';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import {
+    QUEUE_NAMES,
+    REGISTRATION_JOB,
+} from '../../../infrastructure/queue/queue.constants';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class PaymentService {
     constructor(
         private prisma: PrismaService,
-        private eventEmitter: EventEmitter2,
         private readonly configService: ConfigService,
+        @InjectQueue(QUEUE_NAMES.REGISTRATION) private registrationQueue: Queue,
     ) {}
 
     async create(
@@ -135,8 +139,8 @@ export class PaymentService {
                 },
             });
 
-            this.eventEmitter.emit(NotificationEventTypes.PAYMENT_APPROVED, {
-                paymentId: payment.id,
+            await this.registrationQueue.add(REGISTRATION_JOB.CONFIRM, {
+                type: 'APPROVE',
                 registrationId: payment.registration.id,
             });
 
@@ -161,8 +165,8 @@ export class PaymentService {
             },
         });
 
-        this.eventEmitter.emit(NotificationEventTypes.PAYMENT_REJECTED, {
-            paymentId: payment.id,
+        await this.registrationQueue.add(REGISTRATION_JOB.CONFIRM, {
+            type: 'REJECT',
             registrationId: payment.registration.id,
             rejectionCount: rejectionCount,
         });

@@ -15,6 +15,11 @@ import {
 import { ReviewAction } from './dto/review-payment.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
+import {
+    QUEUE_NAMES,
+    REGISTRATION_JOB,
+} from '../../../infrastructure/queue/queue.constants';
 
 describe('PaymentService', () => {
     let service: PaymentService;
@@ -60,8 +65,8 @@ describe('PaymentService', () => {
         status: PaymentStatus.SUBMITTED,
     };
 
-    let mockEvent = {
-        emit: jest.fn(),
+    let mockRegistrationQueue = {
+        add: jest.fn(),
     };
 
     let mockConfigService = {
@@ -73,7 +78,10 @@ describe('PaymentService', () => {
             providers: [
                 PaymentService,
                 { provide: PrismaService, useValue: mockPrisma },
-                { provide: EventEmitter2, useValue: mockEvent },
+                {
+                    provide: getQueueToken(QUEUE_NAMES.REGISTRATION),
+                    useValue: mockRegistrationQueue,
+                },
                 { provide: ConfigService, useValue: mockConfigService },
             ],
         }).compile();
@@ -289,10 +297,13 @@ describe('PaymentService', () => {
                 action: ReviewAction.APPROVE,
             });
 
-            expect(mockEvent.emit).toHaveBeenCalledWith('payment.approved', {
-                paymentId: 'payment-id-123',
-                registrationId: 'registration-id-123',
-            });
+            expect(mockRegistrationQueue.add).toHaveBeenCalledWith(
+                REGISTRATION_JOB.CONFIRM,
+                {
+                    type: 'APPROVE',
+                    registrationId: 'registration-id-123',
+                },
+            );
         });
 
         it('should emit payment.rejected event with attempt count on rejection', async () => {
@@ -314,11 +325,14 @@ describe('PaymentService', () => {
                 rejectionReason: 'Test reason',
             });
 
-            expect(mockEvent.emit).toHaveBeenCalledWith('payment.rejected', {
-                paymentId: 'payment-id-123',
-                registrationId: 'registration-id-123',
-                rejectionCount: 1,
-            });
+            expect(mockRegistrationQueue.add).toHaveBeenCalledWith(
+                REGISTRATION_JOB.CONFIRM,
+                {
+                    type: 'REJECT',
+                    registrationId: 'registration-id-123',
+                    rejectionCount: 1,
+                },
+            );
         });
     });
 

@@ -1,0 +1,18 @@
+meta {
+  name: List Comments
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}/comments
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  cursor:
+  limit: 20
+}

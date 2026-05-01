@@ -1,0 +1,13 @@
+meta {
+  name: Is Following Event
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/isFollowing/{{userId}}/{{eventId}}/event
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

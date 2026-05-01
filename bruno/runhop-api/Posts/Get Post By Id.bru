@@ -1,0 +1,13 @@
+meta {
+  name: Get Post By Id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

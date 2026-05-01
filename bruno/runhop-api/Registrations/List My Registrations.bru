@@ -1,0 +1,19 @@
+meta {
+  name: List My Registrations
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/me/registrations
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  cursor:
+  limit: 20
+  status: PENDING
+}

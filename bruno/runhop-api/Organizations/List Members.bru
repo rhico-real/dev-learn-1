@@ -1,0 +1,13 @@
+meta {
+  name: List Members
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{orgId}}/members
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

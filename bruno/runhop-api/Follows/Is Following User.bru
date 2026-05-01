@@ -1,0 +1,13 @@
+meta {
+  name: Is Following User
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/isFollowing/{{userId}}/{{otherUserId}}/user
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

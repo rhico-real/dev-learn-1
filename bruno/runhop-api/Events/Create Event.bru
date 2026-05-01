@@ -1,0 +1,26 @@
+meta {
+  name: Create Event
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/events/{{orgId}}
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "RunHop 10K Festival",
+    "description": "Annual road race event.",
+    "location": "Manila",
+    "bannerImage": "https://example.com/event-banner.png",
+    "startDate": "2026-06-01T06:00:00.000Z",
+    "endDate": "2026-06-01T12:00:00.000Z"
+  }
+}

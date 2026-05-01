@@ -1,0 +1,13 @@
+meta {
+  name: Delete Organization
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/organizations/{{orgId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

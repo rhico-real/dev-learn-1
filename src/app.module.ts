@@ -32,7 +32,6 @@ import { QueueModel } from './infrastructure/queue/queue.model';
         EventContextModule,
         SocialContextModule,
         HealthModule,
-        EventEmitterModule.forRoot(),
         QueueModel,
     ],
     providers: [

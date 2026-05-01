@@ -1,0 +1,21 @@
+meta {
+  name: Update Event Status
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}/status
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "PUBLISHED"
+  }
+}

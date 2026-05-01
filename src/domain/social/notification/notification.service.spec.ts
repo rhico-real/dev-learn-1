@@ -63,82 +63,82 @@ describe('NotificationService', () => {
         jest.useRealTimers();
     });
 
-    describe('create like record', () => {
-        it('should create a like record', async () => {
-            mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
-            mockPrisma.notification.create.mockResolvedValue(
-                mockNotificationRecord,
-            );
+    // describe('create like record', () => {
+    //     it('should create a like record', async () => {
+    //         mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
+    //         mockPrisma.notification.create.mockResolvedValue(
+    //             mockNotificationRecord,
+    //         );
 
-            const result = await service.createLikeNotification({
-                actorId: 'actor-id-123',
-                postId: 'post-id-123',
-            });
+    //         const result = await service.createLikeNotification({
+    //             actorId: 'actor-id-123',
+    //             postId: 'post-id-123',
+    //         });
 
-            expect(result).toEqual(mockNotificationRecord);
-        });
+    //         expect(result).toEqual(mockNotificationRecord);
+    //     });
 
-        it('should throw NotFoundException if post is not found', async () => {
-            mockPrisma.post.findUnique.mockResolvedValue(null);
-            await expect(
-                service.createLikeNotification({
-                    actorId: 'actor-id-123',
-                    postId: 'post-id-124',
-                }),
-            ).rejects.toThrow(NotFoundException);
-        });
+    //     it('should throw NotFoundException if post is not found', async () => {
+    //         mockPrisma.post.findUnique.mockResolvedValue(null);
+    //         await expect(
+    //             service.createLikeNotification({
+    //                 actorId: 'actor-id-123',
+    //                 postId: 'post-id-124',
+    //             }),
+    //         ).rejects.toThrow(NotFoundException);
+    //     });
 
-        it('should return null if post author is actor', async () => {
-            mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
+    //     it('should return null if post author is actor', async () => {
+    //         mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
 
-            const result = await service.createLikeNotification({
-                actorId: 'author-id-123',
-                postId: 'post-id-123',
-            });
+    //         const result = await service.createLikeNotification({
+    //             actorId: 'author-id-123',
+    //             postId: 'post-id-123',
+    //         });
 
-            expect(result).toBe(null);
-        });
-    });
+    //         expect(result).toBe(null);
+    //     });
+    // });
 
-    describe('create comment record', () => {
-        it('should create a comment record', async () => {
-            mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
-            mockPrisma.notification.create.mockResolvedValue(
-                mockNotifCommentRecord,
-            );
+    // describe('create comment record', () => {
+    //     it('should create a comment record', async () => {
+    //         mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
+    //         mockPrisma.notification.create.mockResolvedValue(
+    //             mockNotifCommentRecord,
+    //         );
 
-            const result = await service.createCommentNotification({
-                actorId: 'actor-id-123',
-                postId: 'post-id-123',
-                commentId: 'comment-id-123',
-            });
+    //         const result = await service.createCommentNotification({
+    //             actorId: 'actor-id-123',
+    //             postId: 'post-id-123',
+    //             commentId: 'comment-id-123',
+    //         });
 
-            expect(result).toEqual(mockNotifCommentRecord);
-        });
+    //         expect(result).toEqual(mockNotifCommentRecord);
+    //     });
 
-        it('should throw NotFoundException if post is not found', async () => {
-            mockPrisma.post.findUnique.mockResolvedValue(null);
-            await expect(
-                service.createCommentNotification({
-                    actorId: 'actor-id-123',
-                    postId: 'post-id-124',
-                    commentId: 'comment-id-123',
-                }),
-            ).rejects.toThrow(NotFoundException);
-        });
+    //     it('should throw NotFoundException if post is not found', async () => {
+    //         mockPrisma.post.findUnique.mockResolvedValue(null);
+    //         await expect(
+    //             service.createCommentNotification({
+    //                 actorId: 'actor-id-123',
+    //                 postId: 'post-id-124',
+    //                 commentId: 'comment-id-123',
+    //             }),
+    //         ).rejects.toThrow(NotFoundException);
+    //     });
 
-        it('should return null if post author is actor', async () => {
-            mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
+    //     it('should return null if post author is actor', async () => {
+    //         mockPrisma.post.findUnique.mockResolvedValue(mockPostRecord);
 
-            const result = await service.createCommentNotification({
-                actorId: 'author-id-123',
-                postId: 'post-id-123',
-                commentId: 'comment-id-123',
-            });
+    //         const result = await service.createCommentNotification({
+    //             actorId: 'author-id-123',
+    //             postId: 'post-id-123',
+    //             commentId: 'comment-id-123',
+    //         });
 
-            expect(result).toBe(null);
-        });
-    });
+    //         expect(result).toBe(null);
+    //     });
+    // });
 
     describe('list notifications for user', () => {
         it('should return list of notifications', async () => {

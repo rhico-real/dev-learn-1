@@ -1,0 +1,13 @@
+meta {
+  name: Delete Follow
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/follows/{{followId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

@@ -1,0 +1,24 @@
+meta {
+  name: Update Organization
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/organizations/{{orgId}}
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "RunHop Club Manila",
+    "description": "Updated organization description.",
+    "logo": "https://example.com/logo.png",
+    "banner": "https://example.com/banner.png"
+  }
+}

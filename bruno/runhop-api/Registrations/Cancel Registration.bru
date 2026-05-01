@@ -1,0 +1,13 @@
+meta {
+  name: Cancel Registration
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/registrations/{{registrationId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

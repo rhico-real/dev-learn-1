@@ -1,0 +1,26 @@
+meta {
+  name: Create Race
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}/races
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "10K Open",
+    "distance": 10,
+    "unit": "KM",
+    "maxParticipants": 500,
+    "price": 800,
+    "currency": "PHP"
+  }
+}

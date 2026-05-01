@@ -1,0 +1,13 @@
+meta {
+  name: Get Registration By Id
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/registrations/{{registrationId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

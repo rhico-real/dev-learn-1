@@ -1,0 +1,13 @@
+meta {
+  name: Delete Comment
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/posts/comments/{{commentId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

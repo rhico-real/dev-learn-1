@@ -1,0 +1,21 @@
+meta {
+  name: Review Payment
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/payments/{{paymentId}}/review
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "action": "APPROVE"
+  }
+}

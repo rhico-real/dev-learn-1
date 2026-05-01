@@ -9,4 +9,4 @@ export const NOTIFICATION_JOB = {
 
 export const REGISTRATION_JOB = {
     CONFIRM: 'registration.confirm',
-};
+} as const;

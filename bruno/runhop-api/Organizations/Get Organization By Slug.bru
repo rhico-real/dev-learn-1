@@ -1,0 +1,13 @@
+meta {
+  name: Get Organization By Slug
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{orgSlug}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

@@ -1,0 +1,18 @@
+meta {
+  name: List Posts By User
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/{{userId}}/posts
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  cursor:
+  limit: 20
+}

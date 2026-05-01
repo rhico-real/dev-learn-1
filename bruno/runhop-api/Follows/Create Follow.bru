@@ -1,0 +1,22 @@
+meta {
+  name: Create Follow
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/follows
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "targetId": "{{userId}}",
+    "targetType": "USER"
+  }
+}

@@ -1,0 +1,18 @@
+meta {
+  name: List Event Followers
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}/followers
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  cursor:
+  limit: 20
+}

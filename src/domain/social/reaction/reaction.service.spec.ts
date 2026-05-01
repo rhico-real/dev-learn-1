@@ -5,6 +5,12 @@ import { PostService } from '../post/post.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { getQueueToken } from '@nestjs/bullmq';
+import {
+    NOTIFICATION_JOB,
+    QUEUE_NAMES,
+} from '../../../infrastructure/queue/queue.constants';
+import { NotificationJobTypes } from '../../../common/notification-events';
 
 describe('Reaction service', () => {
     let service: ReactionService;
@@ -37,11 +43,11 @@ describe('Reaction service', () => {
     let mockLikeRecord = {
         id: 'like-id-123',
         postId: 'post-id-123',
-        userId: 'author-id-123',
+        userId: 'user-id-123',
     };
 
-    let mockEventEmitter = {
-        emit: jest.fn(),
+    let mockNotificationQueue = {
+        add: jest.fn(),
     };
 
     let mockComment = {
@@ -57,7 +63,10 @@ describe('Reaction service', () => {
                 ReactionService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: PostService, useValue: mockPostService },
-                { provide: EventEmitter2, useValue: mockEventEmitter },
+                {
+                    provide: getQueueToken(QUEUE_NAMES.NOTIFICATION),
+                    useValue: mockNotificationQueue,
+                },
             ],
         }).compile();
 
@@ -81,9 +90,17 @@ describe('Reaction service', () => {
         it('should return like record if post is liked', async () => {
             mockPostService.findById.mockResolvedValue(mockPostRecord);
             mockPrisma.postLike.create.mockResolvedValue(mockLikeRecord);
-            const result = await service.like('post-id-123', 'author-id-123');
+            const result = await service.like('post-id-123', 'user-id-123');
 
             expect(result).toEqual(mockLikeRecord);
+            expect(mockNotificationQueue.add).toHaveBeenCalledWith(
+                NOTIFICATION_JOB.CREATE,
+                {
+                    type: NotificationJobTypes.POST_LIKE,
+                    actorId: 'user-id-123',
+                    postId: 'post-id-123',
+                },
+            );
         });
 
         it('should return NotFoundException if post is not found', async () => {
@@ -154,7 +171,7 @@ describe('Reaction service', () => {
     describe('create comment', () => {
         it('should be able to create comment', async () => {
             mockPostService.exists.mockResolvedValue(mockPostRecord);
-            mockEventEmitter.emit.mockReturnValue(true);
+            // mockNotificationQueue.add.mockReturnValue(true);
             mockPrisma.postComment.create.mockResolvedValue(mockComment);
 
             const result = await service.createComment(
@@ -171,6 +188,15 @@ describe('Reaction service', () => {
                     content: 'Test comment',
                 },
             });
+            expect(mockNotificationQueue.add).toHaveBeenCalledWith(
+                NOTIFICATION_JOB.CREATE,
+                {
+                    type: NotificationJobTypes.POST_COMMENT,
+                    actorId: 'author-id-123',
+                    postId: 'post-id-123',
+                    commentId: 'comment-id-123',
+                },
+            );
         });
 
         it('should return NotFoundException if post is not found', async () => {

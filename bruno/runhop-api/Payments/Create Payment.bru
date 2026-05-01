@@ -1,0 +1,24 @@
+meta {
+  name: Create Payment
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/registrations/{{registrationId}}/payments
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "method": "GCASH",
+    "amount": 800,
+    "currency": "PHP",
+    "proofImage": "https://example.com/proof.png"
+  }
+}

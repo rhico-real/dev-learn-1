@@ -1,0 +1,13 @@
+meta {
+  name: Like Post
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}/likes
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module';
-import request from 'supertest';
+import request, { Response } from 'supertest';
 import { PaymentMethod, RegistrationStatus, User } from '@prisma/client';
 import { ReviewAction } from '../../src/domain/event/payment/dto/review-payment.dto';
 
@@ -337,6 +337,27 @@ describe('Payment (e2e)', () => {
         });
     });
 
+    async function waitForReview() {
+        // set a timeout of 3 seconds to give time for db to update to cancel registration
+        const timeoutMs = 3000;
+        const intervalMs = 200;
+        const start = Date.now();
+
+        while (Date.now() - start < timeoutMs) {
+            const res = await request(app.getHttpServer())
+                .get(`/api/v1/registrations/${registrationPaymentValidationId}`)
+                .set('Authorization', `Bearer ${adminUser.accessToken}`);
+
+            if (res.body.data.status === RegistrationStatus.CANCELLED) {
+                return res;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+
+        throw new Error('Timeout for requesting registration.');
+    }
+
     describe('Payment retry and auto-cancel', () => {
         let secondPaymentId: string;
 
@@ -400,9 +421,7 @@ describe('Payment (e2e)', () => {
                     rejectionReason: 'Third rejection of payment',
                 });
 
-            const registration = await request(app.getHttpServer())
-                .get(`/api/v1/registrations/${registrationPaymentValidationId}`)
-                .set('Authorization', `Bearer ${adminUser.accessToken}`);
+            const registration = await waitForReview();
 
             expect(registration.body.data.status).toBe(
                 RegistrationStatus.CANCELLED,

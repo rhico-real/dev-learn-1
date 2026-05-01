@@ -1,0 +1,23 @@
+meta {
+  name: Patch Me
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/users/me
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "displayName": "Runner Updated",
+    "bio": "Training for my next race.",
+    "avatar": "https://example.com/avatar.png"
+  }
+}

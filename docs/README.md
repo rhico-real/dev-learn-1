@@ -18,6 +18,8 @@ If you're building RunHop in order, start with the whole roadmap first, then mov
    - **[Phase 3 Payments Plan](superpowers/plans/2026-04-16-runhop-phase3-payments.md)** — the implementation path for manual payment verification tied to race registration.
 5. **Use the learning guides when you get stuck**
    - Database concepts, system design concepts, DDD boundaries, and relationship diagrams are meant to support the phase plans.
+6. **Use study guides when a language or tooling concept feels fuzzy**
+   - **[TypeScript Foundations For A Flutter Developer](study-guides/typescript-foundations-for-flutter-dev.md)** — compile time vs runtime, `as`, generics, `Promise`, and a 7-day study plan.
 
 ## What's in here
 
@@ -37,6 +39,9 @@ If you're building RunHop in order, start with the whole roadmap first, then mov
 ### Learning Guides
 - **[Database Concepts](guides/database-concepts.md)** — Relationships, indexes, transactions, ACID, soft deletes, N+1 — all explained with RunHop examples.
 - **[System Design Concepts](guides/system-design-concepts.md)** — Modular monolith, REST API, auth, caching, scaling, CAP theorem — mapped to FAANG interview patterns.
+
+### Study Guides
+- **[TypeScript Foundations For A Flutter Developer](study-guides/typescript-foundations-for-flutter-dev.md)** — A focused bridge into TypeScript mental models: compile time vs runtime, `as`, `T`, `Promise`, and safe handling of outside data.
 
 ## Tech Stack
 

@@ -1,0 +1,23 @@
+meta {
+  name: Update Race
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/races/{{raceId}}
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "10K Elite",
+    "maxParticipants": 350,
+    "price": 1000
+  }
+}

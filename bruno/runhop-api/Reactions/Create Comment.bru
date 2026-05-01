@@ -1,0 +1,21 @@
+meta {
+  name: Create Comment
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}/comments
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "content": "Nice run."
+  }
+}

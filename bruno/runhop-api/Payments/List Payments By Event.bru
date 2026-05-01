@@ -1,0 +1,19 @@
+meta {
+  name: List Payments By Event
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}/payments
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  status:
+  cursor:
+  limit: 20
+}

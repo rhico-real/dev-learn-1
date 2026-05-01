@@ -1,0 +1,18 @@
+meta {
+  name: List Registrations By Race
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/races/{{raceId}}/registrations
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  cursor:
+  limit: 20
+}

@@ -1,0 +1,13 @@
+meta {
+  name: Delete Event
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

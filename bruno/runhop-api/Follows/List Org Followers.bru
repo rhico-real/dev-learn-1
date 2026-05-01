@@ -1,0 +1,18 @@
+meta {
+  name: List Org Followers
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/orgs/{{orgId}}/followers
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  cursor:
+  limit: 20
+}

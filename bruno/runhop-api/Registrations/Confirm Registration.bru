@@ -1,0 +1,13 @@
+meta {
+  name: Confirm Registration
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/registrations/{{registrationId}}/confirm
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

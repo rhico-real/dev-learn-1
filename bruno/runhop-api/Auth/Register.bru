@@ -1,0 +1,27 @@
+meta {
+  name: Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "runner+2@example.com",
+    "password": "password123",
+    "displayName": "Runner Two"
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://192.168.254.104:3000
+}

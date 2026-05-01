@@ -9,7 +9,6 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { RaceService } from '../race/race.service';
 import { Prisma, RegistrationStatus } from '@prisma/client';
 import { OnEvent } from '@nestjs/event-emitter';
-import { NotificationEventTypes } from '../../../common/notification-events';
 import { ConfigService } from '@nestjs/config';
 
 const registrationStatus: Record<string, RegistrationStatus> = {
@@ -22,7 +21,6 @@ export class RegistrationService {
     constructor(
         private prisma: PrismaService,
         private raceService: RaceService,
-        private readonly configService: ConfigService,
     ) {}
     /**
      * Registration
@@ -220,33 +218,5 @@ export class RegistrationService {
                 id,
             },
         });
-    }
-
-    @OnEvent(NotificationEventTypes.PAYMENT_APPROVED)
-    async handlePaymentApprovedEvent(event: {
-        paymentId: string;
-        registrationId: string;
-    }) {
-        await this.prisma.registration.update({
-            where: { id: event.registrationId },
-            data: { status: 'CONFIRMED' },
-        });
-    }
-
-    @OnEvent(NotificationEventTypes.PAYMENT_REJECTED)
-    async handlePaymentRejectedEvent(event: {
-        paymentId: string;
-        registrationId: string;
-        rejectionCount: number;
-    }) {
-        if (
-            event.rejectionCount >=
-            this.configService.get<number>('MAX_PAYMENT_ATTEMPTS', 3)
-        ) {
-            await this.prisma.registration.update({
-                where: { id: event.registrationId },
-                data: { status: 'CANCELLED' },
-            });
-        }
     }
 }

@@ -1,0 +1,13 @@
+meta {
+  name: Delete Race
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/races/{{raceId}}
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

@@ -1,0 +1,13 @@
+meta {
+  name: Find My Membership
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/organizations/{{orgId}}/members/find
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

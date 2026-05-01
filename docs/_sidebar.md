@@ -18,6 +18,9 @@
   - [Bounded Contexts & DDD](guides/bounded-contexts.md)
   - [Database Visualization & Relationships](guides/database-relationships.md)
 
+- **Study Guides**
+  - [TypeScript Foundations For A Flutter Developer](study-guides/typescript-foundations-for-flutter-dev.md)
+
 - **Additional Notes**
   - [HTTP Status Codes & Exceptions](guides/additional-notes.md)
   - [Update Logs](guides/update-logs.md)

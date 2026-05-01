@@ -1,0 +1,13 @@
+meta {
+  name: List Races By Event
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/events/{{eventId}}/races
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
