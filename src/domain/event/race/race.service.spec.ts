@@ -3,6 +3,7 @@ import { RaceService } from './race.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { EventService } from '../event/event.service';
 import { BadRequestException } from '@nestjs/common';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 describe('RaceService', () => {
     let service: RaceService;
@@ -60,12 +61,19 @@ describe('RaceService', () => {
         findById: jest.fn(),
     };
 
+    const mockCacheService = {
+        get: jest.fn(),
+        set: jest.fn(),
+        delByPattern: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 RaceService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: EventService, useValue: mockEventService },
+                { provide: CacheService, useValue: mockCacheService },
             ],
         }).compile();
 
@@ -86,6 +94,14 @@ describe('RaceService', () => {
             const result = await service.listByEvent('some-event-id');
 
             expect(result).toEqual([mockRace]);
+            expect(mockCacheService.get).toHaveBeenCalledWith(
+                'runhop:events:some-event-id:races',
+            );
+            expect(mockCacheService.set).toHaveBeenCalledWith(
+                'runhop:events:some-event-id:races',
+                [mockRace],
+                300,
+            );
         });
     });
 
@@ -140,6 +156,9 @@ describe('RaceService', () => {
                     price: 1000,
                 },
             });
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
+                'runhop:events:some-event-id:races',
+            );
         });
 
         // Test: should throw BadRequestException when event is not DRAFT
@@ -210,6 +229,9 @@ describe('RaceService', () => {
                     id: 'race-id-123',
                 },
             });
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
+                'runhop:events:some-event-id:races',
+            );
         });
 
         // Test: should throw BadRequestException when event is not DRAFT

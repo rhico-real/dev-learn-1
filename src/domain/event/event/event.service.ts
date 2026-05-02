@@ -9,6 +9,11 @@ import { Prisma } from '@prisma/client';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { UpdateEventStatusDto } from './dto/update-event-status.dto';
 import { GenerateSlugService } from '../../../common/generate-slug.service';
+import {
+    CACHE_KEYS,
+    CACHE_TTL,
+} from '../../../infrastructure/cache/cache.constants';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
     DRAFT: ['PUBLISHED'],
@@ -17,18 +22,12 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
     COMPLETED: [],
 };
 
-// const eventStatusMap: Record<string, EventStatus> = {
-//     DRAFT: EventStatus.DRAFT,
-//     PUBLISHED: EventStatus.PUBLISHED,
-//     CLOSED: EventStatus.CLOSED,
-//     COMPLETED: EventStatus.COMPLETED,
-// }
-
 @Injectable()
 export class EventService {
     constructor(
         private prisma: PrismaService,
         private generateSlug: GenerateSlugService,
+        private cacheService: CacheService,
     ) {}
 
     async findById(id: string) {
@@ -70,7 +69,7 @@ export class EventService {
     async create(orgId: string, dto: CreateEventDto) {
         const slug = this.generateSlug.generateSlug(dto.name);
 
-        return await this.prisma.event.create({
+        const event = await this.prisma.event.create({
             data: {
                 orgId,
                 name: dto.name,
@@ -82,6 +81,10 @@ export class EventService {
                 endDate: new Date(dto.endDate).toISOString(),
             },
         });
+
+        await this.cacheService.delByPattern(`runhop:events:list`);
+
+        return event;
     }
 
     async update(id: string, dto: UpdateEventDto) {
@@ -153,12 +156,21 @@ export class EventService {
             throw new BadRequestException('Only DRAFT events can be deleted');
         }
 
-        return await this.prisma.event.delete({
+        const events = await this.prisma.event.delete({
             where: { id },
         });
+
+        await this.cacheService.delByPattern(`runhop:events:list`);
+
+        return events;
     }
 
     async listPublished(cursor?: string, take: number = 20) {
+        const key = CACHE_KEYS.eventList();
+        const cached = await this.cacheService.get(key);
+
+        if (cached) return cached;
+
         const args: Prisma.EventFindManyArgs = {
             take,
             where: { status: 'PUBLISHED' },
@@ -173,11 +185,15 @@ export class EventService {
         const event = await this.prisma.event.findMany(args);
         const nextCursor = event.at(-1)?.id;
 
-        return {
+        const events = {
             data: event,
             meta: {
                 cursor: nextCursor,
             },
         };
+
+        await this.cacheService.set(key, events, CACHE_TTL.EVENT_LIST);
+
+        return events;
     }
 }

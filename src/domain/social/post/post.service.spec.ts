@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PostService } from './post.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 describe('Post Service', () => {
     let service: PostService;
@@ -29,11 +30,16 @@ describe('Post Service', () => {
         deletedAt: new Date('2026-04-14'),
     };
 
+    let mockCacheService = {
+        delByPattern: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 PostService,
                 { provide: PrismaService, useValue: mockPrisma },
+                { provide: CacheService, useValue: mockCacheService },
             ],
         }).compile();
 
@@ -61,6 +67,9 @@ describe('Post Service', () => {
                     content: 'Test post content',
                 },
             });
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
+                'runhop:feed:*',
+            );
         });
 
         it('should return BadRequestException if content is empty', async () => {
@@ -98,6 +107,9 @@ describe('Post Service', () => {
 
             const result = await service.delete('post-id-123');
             expect(result).toBe(mockPostDeleted);
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
+                'runhop:feed:*',
+            );
         });
 
         it('should return NotFoundException if post is not found', async () => {

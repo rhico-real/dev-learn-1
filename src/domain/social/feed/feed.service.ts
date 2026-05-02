@@ -3,10 +3,18 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { PostService } from '../post/post.service';
 import { FollowService } from '../follow/follow.service';
 import { Prisma, TargetType } from '@prisma/client';
+import {
+    CACHE_KEYS,
+    CACHE_TTL,
+} from '../../../infrastructure/cache/cache.constants';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 @Injectable()
 export class FeedService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private cacheService: CacheService,
+    ) {}
 
     private async reactionExists(postId: string, userId: string) {
         const res = await this.prisma.postLike.findUnique({
@@ -19,6 +27,12 @@ export class FeedService {
     }
 
     async listFeed(userId: string, cursor?: string, take: number = 20) {
+        const cacheKey = CACHE_KEYS.feed(userId);
+
+        const cached = await this.cacheService.get(cacheKey);
+
+        if (cached) return cached;
+
         // query all then just extract the targetId's
         const following = await this.prisma.follow.findMany({
             where: { followerId: userId, targetType: TargetType.USER },
@@ -90,11 +104,15 @@ export class FeedService {
 
         const nextCursor = newPosts.at(-1)?.id;
 
-        return {
+        const result = {
             data: newPosts,
             meta: {
                 cursor: nextCursor,
             },
         };
+
+        await this.cacheService.set(cacheKey, result, CACHE_TTL.FEED);
+
+        return result;
     }
 }

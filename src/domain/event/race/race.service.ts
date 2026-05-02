@@ -7,12 +7,18 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { CreateRaceDto } from './dto/create-race.dto';
 import { UpdateRaceDto } from './dto/update-race.dto';
 import { EventService } from '../event/event.service';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
+import {
+    CACHE_KEYS,
+    CACHE_TTL,
+} from '../../../infrastructure/cache/cache.constants';
 
 @Injectable()
 export class RaceService {
     constructor(
         private prismaService: PrismaService,
         private eventService: EventService,
+        private cacheService: CacheService,
     ) {}
 
     // verify event is draft
@@ -51,11 +57,20 @@ export class RaceService {
     }
 
     async listByEvent(eventId: string) {
-        return this.prismaService.race.findMany({
+        const key = CACHE_KEYS.raceList(eventId);
+        const cached = await this.cacheService.get(key);
+
+        if (cached) return cached;
+
+        const races = await this.prismaService.race.findMany({
             where: {
                 eventId: eventId,
             },
         });
+
+        await this.cacheService.set(key, races, CACHE_TTL.EVENT_LIST);
+
+        return races;
     }
 
     async checkCapacity(raceId: string) {
@@ -83,12 +98,15 @@ export class RaceService {
     async create(eventId: string, dto: CreateRaceDto) {
         await this.verifyEventIsDraft(eventId);
 
-        return this.prismaService.race.create({
+        const race = await this.prismaService.race.create({
             data: {
                 ...dto,
                 eventId,
             },
         });
+
+        await this.cacheService.delByPattern(`runhop:events:${eventId}:races`);
+        return race;
     }
 
     // update (event must be draft)
@@ -111,10 +129,16 @@ export class RaceService {
         const race = await this.findById(id);
         await this.verifyEventIsDraft(race.eventId);
 
-        return this.prismaService.race.delete({
+        const res = await this.prismaService.race.delete({
             where: {
                 id,
             },
         });
+
+        await this.cacheService.delByPattern(
+            `runhop:events:${race.eventId}:races`,
+        );
+
+        return res;
     }
 }

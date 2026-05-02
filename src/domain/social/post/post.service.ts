@@ -6,10 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { Prisma } from '@prisma/client';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 @Injectable()
 export class PostService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private cacheService: CacheService,
+    ) {}
 
     async findById(postId: string) {
         return this.prisma.post.findUnique({
@@ -45,12 +49,16 @@ export class PostService {
             throw new BadRequestException('Content cannot be empty.');
         }
 
-        return this.prisma.post.create({
+        const post = await this.prisma.post.create({
             data: {
                 authorId: author,
                 content: content,
             },
         });
+
+        await this.cacheService.delByPattern(`runhop:feed:*`);
+
+        return post;
     }
 
     /**
@@ -78,7 +86,7 @@ export class PostService {
 
         if (!post) throw new NotFoundException('Post not found');
 
-        return this.prisma.post.update({
+        const result = await this.prisma.post.update({
             where: {
                 id: postId,
             },
@@ -86,6 +94,10 @@ export class PostService {
                 deletedAt: new Date(),
             },
         });
+
+        await this.cacheService.delByPattern(`runhop:feed:*`);
+
+        return result;
     }
 
     // hide deleted posts from normal reads

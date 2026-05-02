@@ -3,6 +3,7 @@ import { EventService } from './event.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { GenerateSlugService } from '../../../common/generate-slug.service';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 describe('EventService', () => {
     let service: EventService;
@@ -84,12 +85,19 @@ describe('EventService', () => {
         generateSlug: jest.fn(),
     };
 
+    let mockCacheService = {
+        get: jest.fn(),
+        set: jest.fn(),
+        delByPattern: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 EventService,
                 { provide: PrismaService, useValue: mockPrisma },
                 { provide: GenerateSlugService, useValue: mockGenerateSlug },
+                { provide: CacheService, useValue: mockCacheService },
             ],
         }).compile();
 
@@ -220,6 +228,9 @@ describe('EventService', () => {
                     id: 'id-123',
                 },
             });
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
+                'runhop:events:list',
+            );
         });
 
         it('should return BadRequestException if deleting event status that is PUBLISHED', async () => {
@@ -274,6 +285,9 @@ describe('EventService', () => {
                     endDate: '2026-06-02T00:00:00.000Z',
                 },
             });
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
+                'runhop:events:list',
+            );
         });
     });
 
@@ -356,6 +370,19 @@ describe('EventService', () => {
                 where: { status: 'PUBLISHED' },
                 orderBy: { startDate: 'asc' },
             });
+            expect(mockCacheService.get).toHaveBeenCalledWith(
+                'runhop:events:list',
+            );
+            expect(mockCacheService.set).toHaveBeenCalledWith(
+                'runhop:events:list',
+                {
+                    data: [mockEventPublished],
+                    meta: {
+                        cursor: 'id-123',
+                    },
+                },
+                300,
+            );
         });
 
         // test: returns published events with cursor -> verify skip 1 and cursor

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FeedService } from './feed.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { CacheService } from '../../../infrastructure/cache/cache.service';
 
 describe('Feed service', () => {
     let service: FeedService;
@@ -32,11 +33,17 @@ describe('Feed service', () => {
         },
     };
 
+    let mockCacheService = {
+        get: jest.fn(),
+        set: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 FeedService,
                 { provide: PrismaService, useValue: mockPrisma },
+                { provide: CacheService, useValue: mockCacheService },
             ],
         }).compile();
 
@@ -74,6 +81,25 @@ describe('Feed service', () => {
                     cursor: 'feed-id-123',
                 },
             });
+            expect(mockCacheService.get).toHaveBeenCalledWith(
+                'runhop:feed:user-id-123',
+            );
+            expect(mockCacheService.set).toHaveBeenCalledWith(
+                'runhop:feed:user-id-123',
+                {
+                    data: [
+                        {
+                            ...feed,
+                            likedByMe: false,
+                            counts: { likes: 1, comments: 1 },
+                        },
+                    ],
+                    meta: {
+                        cursor: 'feed-id-123',
+                    },
+                },
+                30,
+            );
         });
     });
 });
