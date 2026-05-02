@@ -82,10 +82,10 @@ describe('Feed service', () => {
                 },
             });
             expect(mockCacheService.get).toHaveBeenCalledWith(
-                'runhop:feed:user-id-123',
+                'runhop:feed:user-id-123:take=20',
             );
             expect(mockCacheService.set).toHaveBeenCalledWith(
-                'runhop:feed:user-id-123',
+                'runhop:feed:user-id-123:take=20',
                 {
                     data: [
                         {

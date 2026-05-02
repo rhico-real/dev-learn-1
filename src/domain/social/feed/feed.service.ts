@@ -27,7 +27,7 @@ export class FeedService {
     }
 
     async listFeed(userId: string, cursor?: string, take: number = 20) {
-        const cacheKey = CACHE_KEYS.feed(userId);
+        const cacheKey = CACHE_KEYS.feed(userId, cursor, take);
 
         const cached = await this.cacheService.get(cacheKey);
 

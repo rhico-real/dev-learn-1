@@ -11,6 +11,7 @@ export const NotificationJobTypes = {
     POST_COMMENT: 'POST_COMMENT',
     FOLLOW: 'FOLLOW',
     PAYMENT_APPROVED: 'PAYMENT_APPROVED',
+    PAYMENT_REJECTED: 'PAYMENT_REJECTED',
 } as const;
 
 export type NotificationJobType =

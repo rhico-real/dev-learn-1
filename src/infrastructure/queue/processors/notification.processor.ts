@@ -78,7 +78,9 @@ export class NotificationProcessor extends WorkerHost {
 
             resolvedRecipientId = post.authorId;
         } else if (
-            (type === 'FOLLOW' || type === 'PAYMENT_APPROVED') &&
+            (type === 'FOLLOW' ||
+                type === 'PAYMENT_APPROVED' ||
+                type === 'PAYMENT_REJECTED') &&
             recipientId
         ) {
             await this.prisma.notification.create({
@@ -113,12 +115,12 @@ export class NotificationProcessor extends WorkerHost {
          * - data -> {type, postId?}
          */
         await Promise.all(
-            tokens.map((dt) => {
+            tokens.map((dt) =>
                 this.fcmService.sendToToken(dt.token, title, body, {
                     type,
                     ...(postId ? { postId } : {}),
-                });
-            }),
+                }),
+            ),
         );
     }
 

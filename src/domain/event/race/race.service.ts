@@ -68,7 +68,7 @@ export class RaceService {
             },
         });
 
-        await this.cacheService.set(key, races, CACHE_TTL.EVENT_LIST);
+        await this.cacheService.set(key, races, CACHE_TTL.RACE_LIST);
 
         return races;
     }
