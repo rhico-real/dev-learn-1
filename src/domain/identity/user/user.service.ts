@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from '@prisma/client';
+import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
 
 @Injectable()
 export class UserService {
@@ -78,5 +79,31 @@ export class UserService {
         });
 
         return this.excludePassword(user);
+    }
+
+    async registerDeviceToken(userId: string, dto: RegisterDeviceTokenDto) {
+        return this.prisma.deviceToken.upsert({
+            where: {
+                userId_token: {
+                    userId,
+                    token: dto.token,
+                },
+            },
+            create: {
+                userId,
+                token: dto.token,
+                platform: dto.platform,
+            },
+            update: {},
+        });
+    }
+
+    async removeDeviceToken(userId: string, token: string) {
+        return this.prisma.deviceToken.deleteMany({
+            where: {
+                userId,
+                token,
+            },
+        });
     }
 }

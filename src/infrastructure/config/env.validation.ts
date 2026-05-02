@@ -34,6 +34,15 @@ export class EnvironmentVariables {
 
     @IsString()
     CORS_ORIGIN!: string;
+
+    @IsString()
+    FCM_PROJECT_ID!: string;
+
+    @IsString()
+    FCM_CLIENT_EMAIL!: string;
+
+    @IsString()
+    FCM_PRIVATE_KEY!: string;
 }
 
 export function validate(config: Record<string, unknown>) {

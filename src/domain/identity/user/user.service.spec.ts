@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { NotFoundException } from '@nestjs/common';
+import { platform } from 'os';
+import { Platform } from '@prisma/client';
 
 describe('UserService', () => {
     let service: UserService;
@@ -37,6 +39,17 @@ describe('UserService', () => {
             findUnique: jest.fn(),
             update: jest.fn(),
         },
+        deviceToken: {
+            upsert: jest.fn(),
+            deleteMany: jest.fn(),
+        },
+    };
+
+    const mockDeviceToken = {
+        id: 'device-token-id-123',
+        userId: 'user-id-123',
+        token: 'token',
+        platform: Platform.IOS,
     };
 
     /** This runs bago pa na run ang test.
@@ -177,6 +190,48 @@ describe('UserService', () => {
             // Assert
             expect(result).not.toHaveProperty('password');
             expect(result).toEqual({ ...mockUser, password: undefined });
+        });
+    });
+
+    describe('registerDeviceToken', () => {
+        it('creates a device token record', async () => {
+            mockPrisma.deviceToken.upsert.mockResolvedValue(mockDeviceToken);
+            const result = await service.registerDeviceToken('user-id-123', {
+                token: 'token',
+                platform: 'IOS',
+            });
+
+            expect(mockPrisma.deviceToken.upsert).toHaveBeenCalledWith({
+                where: {
+                    userId_token: {
+                        userId: 'user-id-123',
+                        token: 'token',
+                    },
+                },
+                create: {
+                    userId: 'user-id-123',
+                    token: 'token',
+                    platform: 'IOS',
+                },
+                update: {},
+            });
+            expect(result).toEqual(mockDeviceToken);
+        });
+    });
+
+    describe('removeDeviceToken', () => {
+        it('deletes the device token', async () => {
+            const result = await service.removeDeviceToken(
+                'user-id-123',
+                'token',
+            );
+
+            expect(mockPrisma.deviceToken.deleteMany).toHaveBeenCalledWith({
+                where: {
+                    userId: 'user-id-123',
+                    token: 'token',
+                },
+            });
         });
     });
 });
