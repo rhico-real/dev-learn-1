@@ -17,6 +17,7 @@
   - [System Design Concepts](guides/system-design-concepts.md)
   - [Bounded Contexts & DDD](guides/bounded-contexts.md)
   - [Database Visualization & Relationships](guides/database-relationships.md)
+  - [Docker Gotchas](guides/docker-gotchas.md)
 
 - **Study Guides**
   - [TypeScript Foundations For A Flutter Developer](study-guides/typescript-foundations-for-flutter-dev.md)

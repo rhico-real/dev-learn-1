@@ -1,0 +1,22 @@
+meta {
+  name: Register Device Token
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/me/device-token
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "sample-device-token-123",
+    "platform": "ANDROID"
+  }
+}

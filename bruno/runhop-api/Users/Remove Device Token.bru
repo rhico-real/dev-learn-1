@@ -1,0 +1,17 @@
+meta {
+  name: Remove Device Token
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/users/me/device-token
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  token: sample-device-token-123
+}

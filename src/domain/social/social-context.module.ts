@@ -4,6 +4,7 @@ import { PostModule } from './post/post.module';
 import { ReactionModule } from './reaction/reaction.module';
 import { FeedModule } from './feed/feed.module';
 import { NotificationModule } from './notification/notification.module';
+import { FCMService } from './notification/fcm.service';
 
 @Module({
     imports: [
@@ -20,5 +21,6 @@ import { NotificationModule } from './notification/notification.module';
         FeedModule,
         NotificationModule,
     ],
+    providers: [FCMService],
 })
 export class SocialContextModule {}

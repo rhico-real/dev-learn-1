@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make RunHop production-ready by adding BullMQ queues, Redis caching, Firebase push notifications, and Docker/Kubernetes deployment.
+**Goal:** Make RunHop production-ready by adding BullMQ queues, Redis caching, Firebase push notifications, and Docker-based local deployment.
 
-**Architecture:** Swap NestJS's in-process EventEmitter for BullMQ queues so side effects (notifications, registration confirmation) are async and retryable. Add a CacheService layer over the existing RedisService for cache-aside reads. Extend the notification queue worker to send FCM pushes after writing DB records. Package the app in a multi-stage Docker image and define Kubernetes manifests.
+**Architecture:** Swap NestJS's in-process EventEmitter for BullMQ queues so side effects (notifications, registration confirmation) are async and retryable. Add a CacheService layer over the existing RedisService for cache-aside reads. Extend the notification queue worker to send FCM pushes after writing DB records. Package the app in a multi-stage Docker image and run the local stack with Docker Compose.
 
-**Tech Stack:** `@nestjs/bullmq`, `bullmq`, `firebase-admin`, `ioredis` (already installed), Docker, Kubernetes
+**Tech Stack:** `@nestjs/bullmq`, `bullmq`, `firebase-admin`, `ioredis` (already installed), Docker, Docker Compose
+
+> **Trimmed scope:** Kubernetes is intentionally deferred for now. Finish queues, caching, push notifications, Docker image creation, Docker Compose, and environment discipline first. Return to Kubernetes only after the app and local container workflow feel stable.
 
 > **Note:** The `/health` endpoint already exists at `src/health/health.controller.ts` and returns DB + Redis status. No changes needed there.
 
@@ -29,10 +31,6 @@
 | `src/domain/identity/user/dto/register-device-token.dto.ts` | DTO for POST /users/me/device-token |
 | `Dockerfile` | Multi-stage Docker build |
 | `docker-compose.yml` | Dev stack: Postgres + Redis + app |
-| `k8s/deployment.yaml` | Kubernetes Deployment |
-| `k8s/service.yaml` | Kubernetes Service (ClusterIP) |
-| `k8s/configmap.yaml` | Non-secret env vars |
-| `k8s/secret.yaml` | Sensitive env vars |
 | `.env.example` | Documents every required env variable |
 
 ### Modified files
@@ -1754,7 +1752,17 @@ git commit -m "feat: add docker-compose.yml for full local stack"
 
 ---
 
-## Task 13: Create Kubernetes manifests
+## Task 13: Kubernetes manifests (Deferred)
+
+This task is intentionally deferred from the current Phase 4 learning scope.
+
+Why it is deferred:
+
+- Kubernetes adds significant operational complexity relative to the backend concepts you are currently learning.
+- Docker and Docker Compose already cover the important local deployment and infrastructure wiring lessons for this phase.
+- You can come back to Kubernetes after queues, caching, push delivery, and local containerization feel routine.
+
+If/when you revisit this later, the original goal is to create:
 
 **Files:**
 - Create: `k8s/deployment.yaml`
@@ -1762,7 +1770,7 @@ git commit -m "feat: add docker-compose.yml for full local stack"
 - Create: `k8s/configmap.yaml`
 - Create: `k8s/secret.yaml`
 
-- [ ] **Step 1: Create the ConfigMap**
+- [ ] **Deferred Step 1: Create the ConfigMap**
 
 Create `k8s/configmap.yaml`:
 
@@ -1782,7 +1790,7 @@ data:
   JWT_REFRESH_EXPIRY: "7d"
 ```
 
-- [ ] **Step 2: Create the Secret template**
+- [ ] **Deferred Step 2: Create the Secret template**
 
 Create `k8s/secret.yaml`:
 
@@ -1802,7 +1810,7 @@ stringData:
 
 > **Important:** Add `k8s/secret.yaml` to `.gitignore` in a real deployment. Never commit real secrets. This file is a template only.
 
-- [ ] **Step 3: Create the Deployment**
+- [ ] **Deferred Step 3: Create the Deployment**
 
 Create `k8s/deployment.yaml`:
 
@@ -1953,6 +1961,8 @@ docker compose up --build
 ```
 
 Expected: all three services start. No errors in the app logs.
+
+> **Colima (macOS):** If you use Colima instead of Docker Desktop, install the Docker CLI and Colima with `brew install docker colima`, then run `colima start` before `docker compose up --build`. The Compose commands stay the same because Colima only replaces the local Docker engine.
 
 - [ ] **Step 3: Verify health endpoint**
 

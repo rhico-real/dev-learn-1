@@ -2,10 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator erd {
-  provider = "prisma-erd-generator"
-  output   = "../docs/erd.svg"
-}
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "../docs/erd.svg"
+// }
 
 datasource db {
   provider = "postgresql"
@@ -47,6 +47,7 @@ enum NotificationType {
   POST_COMMENTED
   FOLLOW
   PAYMENT_APPROVED
+  PAYMENT_REJECTED
 }
 
 enum PaymentMethod {

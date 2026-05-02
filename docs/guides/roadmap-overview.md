@@ -11,7 +11,7 @@ There are **4 phases** in the current roadmap.
 | **Phase 1** | Core platform | Users, organizations, events, races, registrations, follows |
 | **Phase 2** | Social layer | Posts, likes, comments, feed, notifications |
 | **Phase 3** | Payments | Manual payment flow for race registration |
-| **Phase 4** | Scale | Queues, caching, deployment maturity, push notifications |
+| **Phase 4** | Scale | Queues, caching, Docker-based local deployment maturity, push notifications |
 
 ## The Big Picture
 

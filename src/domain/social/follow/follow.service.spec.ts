@@ -11,6 +11,11 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { Prisma, TargetType } from '@prisma/client';
+import { getQueueToken } from '@nestjs/bullmq';
+import {
+    NOTIFICATION_JOB,
+    QUEUE_NAMES,
+} from '../../../infrastructure/queue/queue.constants';
 
 describe('Follow Service', () => {
     let service: FollowService;
@@ -60,6 +65,10 @@ describe('Follow Service', () => {
         exists: jest.fn(),
     };
 
+    const mockNotificationQueue = {
+        add: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -68,6 +77,10 @@ describe('Follow Service', () => {
                 { provide: UserService, useValue: mockUserService },
                 { provide: OrganizationService, useValue: mockOrgService },
                 { provide: EventService, useValue: mockEventService },
+                {
+                    provide: getQueueToken(QUEUE_NAMES.NOTIFICATION),
+                    useValue: mockNotificationQueue,
+                },
             ],
         }).compile();
 
@@ -100,6 +113,14 @@ describe('Follow Service', () => {
                     'USER',
                 );
                 expect(result).toEqual(mockFollowUser);
+                expect(mockNotificationQueue.add).toHaveBeenCalledWith(
+                    NOTIFICATION_JOB.CREATE,
+                    {
+                        type: 'FOLLOW',
+                        actorId: 'follower-id-123',
+                        recipientId: 'target-id-123',
+                    },
+                );
             });
 
             it('should create a follow record for ORGANIZATION', async () => {

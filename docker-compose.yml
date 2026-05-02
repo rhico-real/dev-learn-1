@@ -1,0 +1,43 @@
+services:
+    postgres:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_DB: runhop
+            POSTGRES_USER: runhop
+            POSTGRES_PASSWORD: runhop
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+
+    redis:
+        image: redis:7-alpine
+        ports:
+            - '6379:6379'
+
+    app:
+        build: .
+        ports:
+            - '3000:3000'
+        environment:
+            DATABASE_URL: ${DATABASE_URL}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: ${REDIS_PORT}
+            JWT_SECRET: ${JWT_SECRET}
+            JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
+            JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
+            PORT: ${PORT}
+            NODE_ENV: ${NODE_ENV}
+            API_PREFIX: ${API_PREFIX}
+            CORS_ORIGIN: ${CORS_ORIGIN}
+            MAX_PAYMENT_ATTEMPTS: ${MAX_PAYMENT_ATTEMPTS}
+            FCM_PROJECT_ID: ${FCM_PROJECT_ID}
+            FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL}
+            FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY}
+        depends_on:
+            - postgres
+            - redis
+        command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
+
+volumes:
+    postgres-data:

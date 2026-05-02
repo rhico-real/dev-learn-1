@@ -10,6 +10,12 @@ import { UserService } from '../../identity/user/user.service';
 import { OrganizationService } from '../../organization/organization/organization.service';
 import { EventService } from '../../event/event/event.service';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import {
+    NOTIFICATION_JOB,
+    QUEUE_NAMES,
+} from '../../../infrastructure/queue/queue.constants';
+import { Queue } from 'bullmq';
 
 const targetTypeMap: Record<string, TargetType> = {
     USER: TargetType.USER,
@@ -24,6 +30,7 @@ export class FollowService {
         private userService: UserService,
         private orgService: OrganizationService,
         private eventService: EventService,
+        @InjectQueue(QUEUE_NAMES.NOTIFICATION) private notificationQueue: Queue,
     ) {}
 
     /**
@@ -80,13 +87,21 @@ export class FollowService {
         await this.validateTargetExists(targetId, targetTypeMap[targetType]);
 
         try {
-            return await this.prismaService.follow.create({
+            const follow = await this.prismaService.follow.create({
                 data: {
                     followerId: followerId,
                     targetId: targetId,
                     targetType: targetTypeMap[targetType],
                 },
             });
+
+            await this.notificationQueue.add(NOTIFICATION_JOB.CREATE, {
+                type: 'FOLLOW',
+                actorId: followerId,
+                recipientId: targetId,
+            });
+
+            return follow;
         } catch (error) {
             if (
                 error instanceof Prisma.PrismaClientKnownRequestError &&

@@ -12,6 +12,7 @@ import { ReviewAction, ReviewPaymentDto } from './dto/review-payment.dto';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import {
+    NOTIFICATION_JOB,
     QUEUE_NAMES,
     REGISTRATION_JOB,
 } from '../../../infrastructure/queue/queue.constants';
@@ -23,6 +24,7 @@ export class PaymentService {
         private prisma: PrismaService,
         private readonly configService: ConfigService,
         @InjectQueue(QUEUE_NAMES.REGISTRATION) private registrationQueue: Queue,
+        @InjectQueue(QUEUE_NAMES.NOTIFICATION) private notificationQueue: Queue,
     ) {}
 
     async create(
@@ -144,6 +146,12 @@ export class PaymentService {
                 registrationId: payment.registration.id,
             });
 
+            await this.notificationQueue.add(NOTIFICATION_JOB.CREATE, {
+                type: 'PAYMENT_APPROVED',
+                actorId: reviewerId,
+                recipientId: payment.registration.userId,
+            });
+
             return update;
         }
 
@@ -169,6 +177,12 @@ export class PaymentService {
             type: 'REJECT',
             registrationId: payment.registration.id,
             rejectionCount: rejectionCount,
+        });
+
+        await this.notificationQueue.add(NOTIFICATION_JOB.CREATE, {
+            type: 'PAYMENT_REJECTED',
+            actorId: reviewerId,
+            recipientId: payment.registration.userId,
         });
 
         return reject;

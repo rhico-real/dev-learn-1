@@ -17,6 +17,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { getQueueToken } from '@nestjs/bullmq';
 import {
+    NOTIFICATION_JOB,
     QUEUE_NAMES,
     REGISTRATION_JOB,
 } from '../../../infrastructure/queue/queue.constants';
@@ -69,6 +70,10 @@ describe('PaymentService', () => {
         add: jest.fn(),
     };
 
+    let mockNotificationQueue = {
+        add: jest.fn(),
+    };
+
     let mockConfigService = {
         get: jest.fn(),
     };
@@ -81,6 +86,10 @@ describe('PaymentService', () => {
                 {
                     provide: getQueueToken(QUEUE_NAMES.REGISTRATION),
                     useValue: mockRegistrationQueue,
+                },
+                {
+                    provide: getQueueToken(QUEUE_NAMES.NOTIFICATION),
+                    useValue: mockNotificationQueue,
                 },
                 { provide: ConfigService, useValue: mockConfigService },
             ],
@@ -227,6 +236,23 @@ describe('PaymentService', () => {
                 reviewedBy: reviewerId,
                 reviewedAt: new Date(),
             });
+
+            expect(mockRegistrationQueue.add).toHaveBeenCalledWith(
+                REGISTRATION_JOB.CONFIRM,
+                {
+                    type: 'APPROVE',
+                    registrationId: 'registration-id-123',
+                },
+            );
+
+            expect(mockNotificationQueue.add).toHaveBeenCalledWith(
+                NOTIFICATION_JOB.CREATE,
+                {
+                    type: 'PAYMENT_APPROVED',
+                    actorId: 'reviewer-id-123',
+                    recipientId: 'user-id-123',
+                },
+            );
         });
 
         it('should reject a submitted payment with reason', async () => {
@@ -241,7 +267,7 @@ describe('PaymentService', () => {
                 reviewedAt: new Date(),
                 rejectionReason: 'Test reason',
             });
-            mockPrisma.payment.count.mockResolvedValue(0);
+            mockPrisma.payment.count.mockResolvedValue(1);
 
             const result = await service.review(reviewerId, 'payment-id-123', {
                 action: ReviewAction.REJECT,
@@ -255,6 +281,24 @@ describe('PaymentService', () => {
                 reviewedAt: new Date(),
                 rejectionReason: 'Test reason',
             });
+
+            expect(mockRegistrationQueue.add).toHaveBeenCalledWith(
+                REGISTRATION_JOB.CONFIRM,
+                {
+                    type: 'REJECT',
+                    registrationId: 'registration-id-123',
+                    rejectionCount: 1,
+                },
+            );
+
+            expect(mockNotificationQueue.add).toHaveBeenCalledWith(
+                NOTIFICATION_JOB.CREATE,
+                {
+                    type: 'PAYMENT_REJECTED',
+                    actorId: 'reviewer-id-123',
+                    recipientId: 'user-id-123',
+                },
+            );
         });
 
         it('should throw BadRequestException when rejecting without reason', async () => {

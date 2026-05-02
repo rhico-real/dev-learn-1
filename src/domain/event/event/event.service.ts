@@ -82,7 +82,7 @@ export class EventService {
             },
         });
 
-        await this.cacheService.delByPattern(`runhop:events:list`);
+        await this.cacheService.delByPattern(`runhop:events:list*`);
 
         return event;
     }
@@ -160,13 +160,13 @@ export class EventService {
             where: { id },
         });
 
-        await this.cacheService.delByPattern(`runhop:events:list`);
+        await this.cacheService.delByPattern(`runhop:events:list*`);
 
         return events;
     }
 
     async listPublished(cursor?: string, take: number = 20) {
-        const key = CACHE_KEYS.eventList();
+        const key = CACHE_KEYS.eventList(cursor, take);
         const cached = await this.cacheService.get(key);
 
         if (cached) return cached;

@@ -229,7 +229,7 @@ describe('EventService', () => {
                 },
             });
             expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
-                'runhop:events:list',
+                'runhop:events:list*',
             );
         });
 
@@ -286,7 +286,7 @@ describe('EventService', () => {
                 },
             });
             expect(mockCacheService.delByPattern).toHaveBeenCalledWith(
-                'runhop:events:list',
+                'runhop:events:list*',
             );
         });
     });
@@ -371,10 +371,10 @@ describe('EventService', () => {
                 orderBy: { startDate: 'asc' },
             });
             expect(mockCacheService.get).toHaveBeenCalledWith(
-                'runhop:events:list',
+                'runhop:events:list:take=20',
             );
             expect(mockCacheService.set).toHaveBeenCalledWith(
-                'runhop:events:list',
+                'runhop:events:list:take=20',
                 {
                     data: [mockEventPublished],
                     meta: {

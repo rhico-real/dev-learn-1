@@ -7,7 +7,12 @@ import { Job } from 'bullmq';
 import { FCMService } from '../../../domain/social/notification/fcm.service';
 
 type NotificationJobData = {
-    type: 'POST_LIKE' | 'POST_COMMENT' | 'FOLLOW' | 'PAYMENT_APPROVED';
+    type:
+        | 'POST_LIKE'
+        | 'POST_COMMENT'
+        | 'FOLLOW'
+        | 'PAYMENT_APPROVED'
+        | 'PAYMENT_REJECTED';
     actorId: string;
     postId: string;
     commentId: string;
@@ -19,6 +24,7 @@ const TYPE_MAP: Record<NotificationJobData['type'], NotificationType> = {
     POST_COMMENT: NotificationType.POST_COMMENTED,
     FOLLOW: NotificationType.FOLLOW,
     PAYMENT_APPROVED: NotificationType.PAYMENT_APPROVED,
+    PAYMENT_REJECTED: NotificationType.PAYMENT_REJECTED,
 };
 
 const PUSH_MESSAGES: Record<
@@ -31,6 +37,10 @@ const PUSH_MESSAGES: Record<
     PAYMENT_APPROVED: {
         title: 'RunHop',
         body: 'Your payment has been approved',
+    },
+    PAYMENT_REJECTED: {
+        title: 'RunHop',
+        body: 'Your payment has been rejected',
     },
 };
 
@@ -75,8 +85,6 @@ export class NotificationProcessor extends WorkerHost {
                 data: {
                     recipientId,
                     actorId,
-                    postId,
-                    commentId,
                     type: TYPE_MAP[type],
                 },
             });
