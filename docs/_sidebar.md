@@ -19,6 +19,10 @@
   - [Database Visualization & Relationships](guides/database-relationships.md)
   - [Docker Gotchas](guides/docker-gotchas.md)
 
+- **Platform Planning**
+  - [Current Stack Overview](guides/current-stack-overview.md)
+  - [Target Full-Stack Architecture](guides/target-fullstack-architecture.md)
+
 - **Study Guides**
   - [TypeScript Foundations For A Flutter Developer](study-guides/typescript-foundations-for-flutter-dev.md)
 
