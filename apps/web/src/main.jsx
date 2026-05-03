@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import {
   BrowserRouter,
@@ -7,7 +7,9 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigate,
 } from 'react-router-dom';
+import { loadSession, login, register, saveSession } from './auth';
 import './styles.css';
 
 const imageSources = {
@@ -92,14 +94,17 @@ const updates = [
 ];
 
 function App() {
+  const initialSession = loadSession();
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MarketingPage />} />
+        <Route path="/" element={<MarketingPage session={initialSession} />} />
         <Route
           path="/login"
           element={
             <AuthPage
+              mode="login"
               eyebrow="Access your account"
               title="Login to RunHop"
               description="Review registrations, follow race updates, and step into the social side of serious running."
@@ -115,11 +120,12 @@ function App() {
           path="/register"
           element={
             <AuthPage
+              mode="register"
               eyebrow="Create your account"
               title="Register for RunHop"
               description="Join the platform where race discovery, premium event presentation, and serious community start from one account."
               buttonLabel="Create account"
-              fields={['name', 'email', 'password', 'role']}
+              fields={['displayName', 'email', 'password']}
               altLinkLabel="Already registered?"
               altLinkTo="/login"
               altLinkAction="Login"
@@ -132,94 +138,129 @@ function App() {
   );
 }
 
-function SiteFrame({ children, inverse = false }) {
+function SiteFrame({ children, inverse = false, session = null }) {
   const location = useLocation();
   const inHome = location.pathname === '/';
+  const inAuth = location.pathname === '/login' || location.pathname === '/register';
   const sectionHref = (hash) => (inHome ? hash : `/${hash}`);
+  const logoSrc = '/logo.png';
+  const headerClassName = inHome
+    ? 'topbar topbar--hero'
+    : inAuth
+      ? 'topbar topbar--shell topbar--auth'
+      : 'topbar topbar--shell';
+  const brandClassName = inHome ? 'brand brand--hero' : 'brand brand--shell';
+  const brandWordClassName = inHome ? 'brand__word brand__word--hero' : 'brand__word brand__word--shell';
+  const navClassName = inHome ? 'topbar__nav topbar__nav--hero' : 'topbar__nav topbar__nav--shell';
 
   return (
     <div className={inverse ? 'site-shell site-shell--inverse' : 'site-shell'}>
-      <header className="topbar">
-        <Link className="brand" to="/" aria-label="RunHop homepage">
-          <span className="brand__mark" aria-hidden="true">
-            RH
-          </span>
-          <span className="brand__word">
+      <header className={headerClassName}>
+        <Link className={brandClassName} to="/" aria-label="RunHop homepage">
+          <img className="brand__logo" src={logoSrc} alt="" aria-hidden="true" />
+          <span className={brandWordClassName}>
             RunHop
-            <small>Race and community platform</small>
+            <small>Race platform</small>
           </span>
         </Link>
-        <nav className="topbar__nav" aria-label="Primary">
+        <nav className={navClassName} aria-label="Primary">
+          {inHome ? <a href={sectionHref('#top')}>Home</a> : null}
           <a href={sectionHref('#races')}>Races</a>
           <a href={sectionHref('#community')}>Community</a>
           <a href={sectionHref('#organizers')}>Organizers</a>
           <a href={sectionHref('#updates')}>Updates</a>
+          {inHome && !session ? <Link to="/login">Login</Link> : null}
+          {inHome && session ? <span className="topbar__session">{session.user.displayName}</span> : null}
+          {inHome ? (
+            session ? (
+              <span className="topbar__nav-accent topbar__nav-accent--muted">Signed in</span>
+            ) : (
+              <Link className="topbar__nav-accent" to="/register">
+                Join
+              </Link>
+            )
+          ) : null}
         </nav>
-        <div className="topbar__actions">
-          <Link className="text-action" to="/login">
-            Login
-          </Link>
-          <Link className="text-action text-action--strong" to="/register">
-            Register
-          </Link>
-        </div>
+        {inHome ? null : (
+          <div className="topbar__actions">
+            {session ? (
+              <span className="topbar__session topbar__session--shell">{session.user.displayName}</span>
+            ) : (
+              <>
+                <Link className="text-action" to="/login">
+                  Login
+                </Link>
+                <Link className="button button--topbar" to="/register">
+                  Join RunHop
+                </Link>
+              </>
+            )}
+          </div>
+        )}
       </header>
       {children}
     </div>
   );
 }
 
-function MarketingPage() {
+function MarketingPage({ session = null }) {
   return (
-    <SiteFrame>
+    <SiteFrame session={session}>
       <main>
-        <section className="hero">
-          <div className="hero__copy">
-            <p className="eyebrow">For runners, cyclists, and race organizers</p>
-            <div className="hero__headline">
-              <span className="hero__headline-kicker">Race registration</span>
-              <h1>Built for the serious side of movement.</h1>
-            </div>
-            <p className="hero__lede">
-              RunHop gives organizers a credible place to present races, sell
-              registrations, and release updates while giving committed athletes
-              one disciplined platform to discover events and move with a real
-              community.
-            </p>
-            <div className="hero__actions">
-              <a className="button button--primary" href="#races">
-                Explore races
-              </a>
-              <a className="button button--ghost" href="#organizers">
-                For organizers
-              </a>
-            </div>
-            <ul className="hero__meta" aria-label="Key strengths">
-              <li>Trusted race presentation</li>
-              <li>Disciplined community discovery</li>
-              <li>Merch and update surfaces in one system</li>
-            </ul>
-          </div>
+        <section className="hero" id="top">
+          <img
+            className="hero__backdrop"
+            src={imageSources.hero}
+            alt=""
+            aria-hidden="true"
+          />
 
-          <div className="hero__visual">
-            <figure className="hero-card hero-card--primary">
-              <img
-                src={imageSources.athlete}
-                alt="Marathon runners moving through a city course"
-              />
-              <figcaption>
-                <span>Next major race window</span>
-                <strong>May 21 to 24, 2026</strong>
-              </figcaption>
-            </figure>
-            <aside className="hero-card hero-card--secondary">
-              <p className="hero-card__label">Organizer spotlight</p>
-              <h2>Sell registrations, race-day merch, and updates from one premium event page.</h2>
-              <p>
-                Built for organizations that want trust before volume, with the
-                discipline to present details clearly and sell with authority.
-              </p>
-            </aside>
+          <div className="hero__content">
+            <div className="hero__copy">
+              <p className="eyebrow">For runners, cyclists, and race organizers</p>
+              <div className="hero__headline">
+                <span className="hero__headline-kicker">Race registration</span>
+                <h1>
+                  <span className="hero__headline-accent">Built for</span>
+                  <span>the serious side</span>
+                  <span>of movement.</span>
+                </h1>
+              </div>
+            </div>
+
+            <div className="hero__rail">
+              <div className="hero__thumbs" aria-label="RunHop race moments">
+                <figure className="hero-thumb">
+                  <img
+                    src={imageSources.raceA}
+                    alt="Runners mid-stride on an urban road course"
+                  />
+                </figure>
+                <figure className="hero-thumb">
+                  <img
+                    src={imageSources.raceB}
+                    alt="A race pack accelerating through a wet road section"
+                  />
+                </figure>
+              </div>
+
+              <aside className="hero__panel">
+                <p className="hero__lede">
+                  RunHop gives organizers a credible place to present races,
+                  sell registrations, and release updates while giving
+                  committed athletes one disciplined platform to discover events
+                  and move with a real community.
+                </p>
+                <div className="hero__actions">
+                  <a className="button button--primary" href="#races">
+                    Explore races
+                  </a>
+                  <a className="button button--ghost" href="#organizers">
+                    For organizers
+                  </a>
+                </div>
+              </aside>
+            </div>
           </div>
         </section>
 
@@ -357,6 +398,7 @@ function MarketingPage() {
 }
 
 function AuthPage({
+  mode,
   eyebrow,
   title,
   description,
@@ -366,6 +408,60 @@ function AuthPage({
   altLinkTo,
   altLinkAction,
 }) {
+  const navigate = useNavigate();
+  const [formState, setFormState] = useState({
+    displayName: '',
+    email: '',
+    password: '',
+  });
+  const [status, setStatus] = useState({
+    submitting: false,
+    error: '',
+  });
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormState((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setStatus({
+      submitting: true,
+      error: '',
+    });
+
+    try {
+      const payload =
+        mode === 'register'
+          ? {
+              displayName: formState.displayName.trim(),
+              email: formState.email.trim(),
+              password: formState.password,
+            }
+          : {
+              email: formState.email.trim(),
+              password: formState.password,
+            };
+
+      const session = mode === 'register' ? await register(payload) : await login(payload);
+
+      saveSession(session);
+      navigate('/', { replace: true });
+    } catch (error) {
+      setStatus({
+        submitting: false,
+        error: error instanceof Error ? error.message : 'Unable to continue.',
+      });
+      return;
+    }
+  };
+
   return (
     <SiteFrame inverse>
       <main className="auth-layout">
@@ -384,37 +480,54 @@ function AuthPage({
         </section>
 
         <section className="auth-card">
-          <form className="auth-form">
-            {fields.includes('name') ? (
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="auth-form__intro">
+              <p className="auth-form__eyebrow">{mode === 'register' ? 'New account' : 'Member access'}</p>
+              <h2>{buttonLabel}</h2>
+            </div>
+
+            {fields.includes('displayName') ? (
               <label>
                 <span>Full name</span>
-                <input type="text" placeholder="Your name" />
+                <input
+                  name="displayName"
+                  type="text"
+                  placeholder="Your name"
+                  value={formState.displayName}
+                  onChange={handleChange}
+                  autoComplete="name"
+                />
               </label>
             ) : null}
 
             <label>
               <span>Email address</span>
-              <input type="email" placeholder="you@example.com" />
+              <input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={formState.email}
+                onChange={handleChange}
+                autoComplete="email"
+              />
             </label>
 
             <label>
               <span>Password</span>
-              <input type="password" placeholder="Enter your password" />
+              <input
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                value={formState.password}
+                onChange={handleChange}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              />
             </label>
 
-            {fields.includes('role') ? (
-              <label>
-                <span>Primary role</span>
-                <select defaultValue="runner">
-                  <option value="runner">Runner or cyclist</option>
-                  <option value="organizer">Race organizer</option>
-                  <option value="club">Community lead or club captain</option>
-                </select>
-              </label>
-            ) : null}
+            {status.error ? <p className="auth-form__error">{status.error}</p> : null}
 
-            <button className="button button--primary" type="button">
-              {buttonLabel}
+            <button className="button button--primary auth-form__submit" type="submit" disabled={status.submitting}>
+              {status.submitting ? 'Working...' : buttonLabel}
             </button>
             <p className="auth-form__hint">
               {altLinkLabel} <Link to={altLinkTo}>{altLinkAction}</Link>
