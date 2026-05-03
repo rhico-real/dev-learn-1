@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1f2328">
+  <title>RunHop Web Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./v2/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__top">
+        <a class="brand" href="./">
+          <span class="brand__mark">R</span>
+          <span class="brand__text">
+            <strong>RunHop</strong>
+            <small>Web Docs</small>
+          </span>
+        </a>
+        <button class="sidebar__close" id="sidebar-close" aria-label="Close menu">×</button>
+      </div>
+
+      <div class="search">
+        <input id="search-input" type="search" placeholder="Search docs" autocomplete="off">
+        <div class="search-results hidden" id="search-results"></div>
+      </div>
+
+      <nav class="nav" id="nav"></nav>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="topbar__context">
+          <p class="topbar__eyebrow" id="context-section">Documentation</p>
+          <h1 class="topbar__title" id="context-title">RunHop Web Docs</h1>
+        </div>
+      </header>
+
+      <div class="content-grid">
+        <article class="article" id="article">
+          <div class="article__loading" id="loading">Loading…</div>
+        </article>
+
+        <aside class="toc" id="toc">
+          <div class="toc__inner">
+            <p class="toc__label">On This Page</p>
+            <div id="toc-links" class="toc__links"></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-jsx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-markdown.min.js"></script>
+  <script>
+    window.RUNHOP_DOCS_ROOT = ".";
+  </script>
+  <script src="./v2/app.js"></script>
+</body>
+</html>

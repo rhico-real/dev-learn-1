@@ -1,34 +1,62 @@
-# RunHop Frontend Docs
+# RunHop Web Docs
 
-This folder is the frontend-specific documentation track for the planned `apps/web` application.
+This is the frontend learning track for `apps/web`.
 
-It is separate from the root `docs/` folder on purpose.
+It is written for your situation specifically:
 
-## Why This Exists Separately
+- you already know Flutter
+- you are learning React so you can ship frontend work on your own
+- you need patterns that fit this repo, not generic tutorial code
 
-The root `docs/` folder is primarily for:
+The goal is to get you comfortable enough to:
 
-- backend and platform architecture
-- roadmap and implementation plans
-- learning guides for the current NestJS codebase
+- change the landing page without hesitation
+- add new sections and routes cleanly
+- integrate the NestJS API from the frontend
+- avoid frontend structure that turns into a mess later
 
-This frontend docs folder is intended for:
+## What This Track Is Optimized For
 
-- product UI architecture
-- marketing and dashboard surface planning
-- design system and theme guidance
-- frontend implementation decisions
-- API integration rules from the web app
+This docs track is biased toward Flutter comparison because that is your fastest path.
 
-## Reading Order
+So instead of teaching React like you are new to UI development, it tries to translate:
 
-1. [Architecture](./architecture.md)
-2. [Surfaces](./surfaces.md)
-3. [Design System](./design-system.md)
+- `Widget` thinking into component thinking
+- `setState` thinking into hook/state thinking
+- `Navigator` thinking into React Router thinking
+- `Future`/async workflow into frontend API workflow
+
+## Best Reading Order
+
+1. [React Foundations For This Repo](./react-foundations-for-this-repo.md)
+2. [Project Map](./project-map.md)
+3. [Architecture](./architecture.md)
 4. [API Integration](./api-integration.md)
+5. [Frontend Best Practices](./frontend-best-practices.md)
+6. [Study Plan](./study-plan.md)
+7. Supporting references:
+   - [Surfaces](./surfaces.md)
+   - [Design System](./design-system.md)
 
-## Status
+## How To Use This Properly
 
-This is a planning and documentation baseline only.
+Read one document, then touch the real app immediately.
 
-No frontend implementation code has been added yet.
+For example:
+
+- after foundations, edit one React section
+- after routing, add one new route
+- after API integration, connect one endpoint
+- after architecture, extract one component
+
+That is much better than reading everything first.
+
+## Run Locally
+
+From `apps/web`:
+
+```bash
+npm run docs
+```
+
+That serves this `docs/` folder locally on port `5556`.

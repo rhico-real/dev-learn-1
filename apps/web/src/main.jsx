@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import {
   BrowserRouter,
@@ -9,7 +9,14 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { loadSession, login, register, saveSession } from './auth';
+import {
+  clearSession,
+  loadSession,
+  login,
+  register,
+  restoreSession,
+  saveSession,
+} from './auth';
 import './styles.css';
 
 const imageSources = {
@@ -23,8 +30,6 @@ const imageSources = {
     'https://images.unsplash.com/photo-1769867627496-1a6b980d95cb?auto=format&fit=crop&w=1200&q=80',
   groupB:
     'https://images.unsplash.com/photo-1769867628125-f79281f22023?auto=format&fit=crop&w=1200&q=80',
-  athlete:
-    'https://images.unsplash.com/photo-1762709753339-7bd2fea1f346?auto=format&fit=crop&w=900&q=80',
 };
 
 const featuredRaces = [
@@ -93,43 +98,242 @@ const updates = [
   },
 ];
 
+const feedNavigation = [
+  { label: 'Home', meta: 'Primary feed', active: true },
+  { label: 'Explore', meta: 'Search races', active: false },
+  { label: 'Community', meta: 'People and clubs', active: false },
+  { label: 'Saved', meta: 'Race watchlist', active: false },
+  { label: 'Messages', meta: 'Direct updates', active: false },
+];
+
+const utilityLinks = [
+  { label: 'Create race', detail: 'Open a new event draft' },
+  { label: 'Payments', detail: 'Review payouts and orders' },
+  { label: 'Settings', detail: 'Account and profile control' },
+  { label: 'User', detail: 'Profile, saved races, teams' },
+];
+
+const trendingRaces = [
+  {
+    name: 'South Loop 21K',
+    date: 'May 21',
+    detail: '1.4K runners tracking this week',
+  },
+  {
+    name: 'Pasig Night Relay',
+    date: 'May 29',
+    detail: 'Organizer slots closing in 2 days',
+  },
+  {
+    name: 'Coastal Tempo Ride',
+    date: 'June 03',
+    detail: 'Fastest-growing cycling event in feed',
+  },
+];
+
+const initialFeedPosts = [
+  {
+    id: 'post-1',
+    audience: 'all',
+    source: 'race',
+    author: 'Manila River Circuit',
+    role: 'Organizer',
+    time: '12m',
+    headline: 'Final timing mats are now confirmed across all 21K checkpoints.',
+    body:
+      'Bib pickup opens Thursday at 16:00. Registered runners can now review the revised turnaround map and marshal notes before race morning.',
+    metrics: {
+      replies: 18,
+      boosts: 42,
+      saves: 116,
+    },
+    tone: 'Operational update',
+  },
+  {
+    id: 'post-2',
+    audience: 'all',
+    source: 'runner',
+    author: 'Coach Elise Tan',
+    role: 'Runner',
+    time: '28m',
+    headline: 'Long-run groups keep asking the same question: which June races still have clean registration flow?',
+    body:
+      'South Loop 21K, Dawn Track Assembly, and Antipolo Climb Series are still the clearest sign-up experiences on the platform. Payment confirmation is landing within minutes, not hours.',
+    metrics: {
+      replies: 11,
+      boosts: 29,
+      saves: 84,
+    },
+    tone: 'Training note',
+  },
+  {
+    id: 'post-3',
+    audience: 'races',
+    source: 'organizer',
+    author: 'Coastal Endurance Weekend',
+    role: 'Organizer',
+    time: '1h',
+    headline: 'Merch bundles are now attached directly to race registration.',
+    body:
+      'Organizers can pair singlets, caps, and support crew passes inside one checkout flow. The goal is cleaner selling, not more friction.',
+    metrics: {
+      replies: 8,
+      boosts: 23,
+      saves: 55,
+    },
+    tone: 'Product release',
+  },
+  {
+    id: 'post-4',
+    audience: 'races',
+    source: 'race',
+    author: 'Antipolo Climb Series',
+    role: 'Race',
+    time: '2h',
+    headline: 'Wave assignments are visible now for riders who completed payment verification.',
+    body:
+      'Check rider profile, confirm your category, and review the neutral rollout protocol before Saturday. Support vehicles have been updated in the race packet.',
+    metrics: {
+      replies: 14,
+      boosts: 31,
+      saves: 73,
+    },
+    tone: 'Race bulletin',
+  },
+];
+
+const feedTabs = [
+  { key: 'all', label: 'For You' },
+  { key: 'races', label: 'Races & Orgs' },
+];
+
 function App() {
-  const initialSession = loadSession();
+  const [session, setSession] = useState(() => loadSession());
+  const [isSessionReady, setIsSessionReady] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function bootSession() {
+      try {
+        const nextSession = await restoreSession();
+
+        if (isActive) {
+          setSession(nextSession);
+        }
+      } catch {
+        if (isActive) {
+          clearSession();
+          setSession(null);
+        }
+      } finally {
+        if (isActive) {
+          setIsSessionReady(true);
+        }
+      }
+    }
+
+    bootSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleSessionChange = async (nextSession) => {
+    const storedSession = saveSession(nextSession);
+
+    if (!storedSession) {
+      clearSession();
+      setSession(null);
+      setIsSessionReady(true);
+      return;
+    }
+
+    setIsSessionReady(false);
+
+    try {
+      const restoredSession = await restoreSession(storedSession);
+      setSession(restoredSession);
+    } catch {
+      clearSession();
+      setSession(null);
+    } finally {
+      setIsSessionReady(true);
+    }
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setSession(null);
+    setIsSessionReady(true);
+  };
+
+  if (!isSessionReady) {
+    return (
+      <div className="app-boot">
+        <div className="app-boot__panel">
+          <p className="feed-label">RunHop</p>
+          <h1>Checking your session.</h1>
+          <p>Verifying account access through the current backend token.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MarketingPage session={initialSession} />} />
+        <Route
+          path="/"
+          element={
+            session ? (
+              <AuthenticatedFeedPage session={session} onLogout={handleLogout} />
+            ) : (
+              <MarketingPage session={session} />
+            )
+          }
+        />
         <Route
           path="/login"
           element={
-            <AuthPage
-              mode="login"
-              eyebrow="Access your account"
-              title="Login to RunHop"
-              description="Review registrations, follow race updates, and step into the social side of serious running."
-              buttonLabel="Sign in"
-              fields={['email', 'password']}
-              altLinkLabel="Need an account?"
-              altLinkTo="/register"
-              altLinkAction="Create one"
-            />
+            session ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthPage
+                mode="login"
+                eyebrow="Access your account"
+                title="Login to RunHop"
+                description="Review registrations, follow race updates, and step into the social side of serious running."
+                buttonLabel="Sign in"
+                fields={['email', 'password']}
+                altLinkLabel="Need an account?"
+                altLinkTo="/register"
+                altLinkAction="Create one"
+                onSessionChange={handleSessionChange}
+              />
+            )
           }
         />
         <Route
           path="/register"
           element={
-            <AuthPage
-              mode="register"
-              eyebrow="Create your account"
-              title="Register for RunHop"
-              description="Join the platform where race discovery, premium event presentation, and serious community start from one account."
-              buttonLabel="Create account"
-              fields={['displayName', 'email', 'password']}
-              altLinkLabel="Already registered?"
-              altLinkTo="/login"
-              altLinkAction="Login"
-            />
+            session ? (
+              <Navigate to="/" replace />
+            ) : (
+              <AuthPage
+                mode="register"
+                eyebrow="Create your account"
+                title="Register for RunHop"
+                description="Join the platform where race discovery, premium event presentation, and serious community start from one account."
+                buttonLabel="Create account"
+                fields={['displayName', 'email', 'password']}
+                altLinkLabel="Already registered?"
+                altLinkTo="/login"
+                altLinkAction="Login"
+                onSessionChange={handleSessionChange}
+              />
+            )
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -144,14 +348,22 @@ function SiteFrame({ children, inverse = false, session = null }) {
   const inAuth = location.pathname === '/login' || location.pathname === '/register';
   const sectionHref = (hash) => (inHome ? hash : `/${hash}`);
   const logoSrc = '/logo.png';
+  const sessionDisplayName =
+    typeof session?.user?.displayName === 'string' ? session.user.displayName : '';
+  const hasSession = Boolean(sessionDisplayName);
+  const useHeroStyle = inHome || inAuth;
   const headerClassName = inHome
     ? 'topbar topbar--hero'
     : inAuth
-      ? 'topbar topbar--shell topbar--auth'
+      ? 'topbar topbar--shell topbar--auth topbar--auth-unified'
       : 'topbar topbar--shell';
-  const brandClassName = inHome ? 'brand brand--hero' : 'brand brand--shell';
-  const brandWordClassName = inHome ? 'brand__word brand__word--hero' : 'brand__word brand__word--shell';
-  const navClassName = inHome ? 'topbar__nav topbar__nav--hero' : 'topbar__nav topbar__nav--shell';
+  const brandClassName = useHeroStyle ? 'brand brand--hero' : 'brand brand--shell';
+  const brandWordClassName = useHeroStyle
+    ? 'brand__word brand__word--hero'
+    : 'brand__word brand__word--shell';
+  const navClassName = useHeroStyle
+    ? 'topbar__nav topbar__nav--hero'
+    : 'topbar__nav topbar__nav--shell';
 
   return (
     <div className={inverse ? 'site-shell site-shell--inverse' : 'site-shell'}>
@@ -164,27 +376,38 @@ function SiteFrame({ children, inverse = false, session = null }) {
           </span>
         </Link>
         <nav className={navClassName} aria-label="Primary">
-          {inHome ? <a href={sectionHref('#top')}>Home</a> : null}
+          {useHeroStyle ? <a href={sectionHref('#top')}>Home</a> : null}
           <a href={sectionHref('#races')}>Races</a>
           <a href={sectionHref('#community')}>Community</a>
           <a href={sectionHref('#organizers')}>Organizers</a>
           <a href={sectionHref('#updates')}>Updates</a>
-          {inHome && !session ? <Link to="/login">Login</Link> : null}
-          {inHome && session ? <span className="topbar__session">{session.user.displayName}</span> : null}
-          {inHome ? (
-            session ? (
-              <span className="topbar__nav-accent topbar__nav-accent--muted">Signed in</span>
-            ) : (
+
+          {useHeroStyle && !hasSession ? (
+            location.pathname !== '/login' ? <Link to="/login">Login</Link> : null
+          ) : null}
+
+          {useHeroStyle && hasSession ? (
+            <span className="topbar__session">{sessionDisplayName}</span>
+          ) : null}
+
+          {useHeroStyle ? (
+            hasSession ? (
+              <span className="topbar__nav-accent topbar__nav-accent--muted">
+                Signed in
+              </span>
+            ) : location.pathname !== '/register' ? (
               <Link className="topbar__nav-accent" to="/register">
                 Join
               </Link>
-            )
+            ) : null
           ) : null}
         </nav>
-        {inHome ? null : (
+        {useHeroStyle ? null : (
           <div className="topbar__actions">
-            {session ? (
-              <span className="topbar__session topbar__session--shell">{session.user.displayName}</span>
+            {hasSession ? (
+              <span className="topbar__session topbar__session--shell">
+                {sessionDisplayName}
+              </span>
             ) : (
               <>
                 <Link className="text-action" to="/login">
@@ -200,6 +423,328 @@ function SiteFrame({ children, inverse = false, session = null }) {
       </header>
       {children}
     </div>
+  );
+}
+
+function AuthenticatedFeedPage({ session, onLogout }) {
+  const [activeTab, setActiveTab] = useState('all');
+  const [draft, setDraft] = useState('');
+  const [isComposerFocused, setIsComposerFocused] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [posts, setPosts] = useState(initialFeedPosts);
+  const composerInputRef = useRef(null);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setIsLoading(false);
+    }, 720);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const visiblePosts = posts.filter((post) =>
+    activeTab === 'all' ? true : post.audience === 'races',
+  );
+
+  const sessionDisplayName = session.user.displayName;
+  const sessionInitials = sessionDisplayName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleComposerSubmit = (event) => {
+    event.preventDefault();
+
+    const trimmedDraft = draft.trim();
+
+    if (!trimmedDraft) {
+      return;
+    }
+
+    setPosts((currentPosts) => [
+      {
+        id: `post-${Date.now()}`,
+        audience: activeTab === 'races' ? 'races' : 'all',
+        source: 'runner',
+        author: sessionDisplayName,
+        role: 'Member',
+        time: 'Now',
+        headline: trimmedDraft,
+        body:
+          activeTab === 'races'
+            ? 'Shared to the races and organizers lane. Feed API wiring can replace this local interaction later.'
+            : 'Shared to your main feed. This local composer is ready to connect to the posting API when it lands.',
+        metrics: {
+          replies: 0,
+          boosts: 0,
+          saves: 0,
+        },
+        tone: activeTab === 'races' ? 'Race note' : 'Community note',
+      },
+      ...currentPosts,
+    ]);
+    setDraft('');
+    setIsComposerFocused(false);
+  };
+
+  const handleHidePost = (postId) => {
+    setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId));
+  };
+
+  const handleStartRaceDraft = () => {
+    setActiveTab('races');
+    setDraft('Race announcement: ');
+    setIsComposerFocused(true);
+    window.requestAnimationFrame(() => {
+      composerInputRef.current?.focus();
+    });
+  };
+
+  const handleResetFeed = () => {
+    setPosts(initialFeedPosts);
+  };
+
+  return (
+    <main className="feed-shell">
+      <a className="skip-link" href="#feed-main">
+        Skip to feed
+      </a>
+
+      <div className="feed-grid">
+        <aside className="feed-sidebar" aria-label="RunHop navigation">
+          <div className="feed-brand">
+            <img className="feed-brand__logo" src="/logo.png" alt="" aria-hidden="true" />
+            <div className="feed-brand__copy">
+              <strong>RunHop</strong>
+              <span>Race platform</span>
+            </div>
+          </div>
+
+          <nav className="feed-sidebar__nav">
+            {feedNavigation.map((item) => (
+              <div
+                className={
+                  item.active
+                    ? 'feed-nav-item feed-nav-item--active'
+                    : 'feed-nav-item'
+                }
+                key={item.label}
+              >
+                <span>{item.label}</span>
+                <small>{item.meta}</small>
+              </div>
+            ))}
+          </nav>
+
+          <button
+            className="button button--primary feed-sidebar__cta"
+            onClick={handleStartRaceDraft}
+            type="button"
+          >
+            Create race
+          </button>
+
+          <section className="feed-sidebar__identity" aria-label="Signed in user">
+            <div className="feed-avatar">{sessionInitials}</div>
+            <div>
+              <p>{sessionDisplayName}</p>
+              <span>Logged in athlete / organizer</span>
+            </div>
+            <button
+              className="feed-sidebar__logout"
+              onClick={onLogout}
+              type="button"
+            >
+              Logout
+            </button>
+          </section>
+        </aside>
+
+        <section className="feed-main" id="feed-main">
+          <header className="feed-main__header">
+            <div className="feed-tabs" role="tablist" aria-label="Feed sections">
+              {feedTabs.map((tab) => (
+                <button
+                  aria-selected={activeTab === tab.key}
+                  className={
+                    activeTab === tab.key ? 'feed-tab feed-tab--active' : 'feed-tab'
+                  }
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  role="tab"
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </header>
+
+          <form className="composer" onSubmit={handleComposerSubmit}>
+            <div className="composer__avatar" aria-hidden="true">
+              {sessionInitials}
+            </div>
+            <div className="composer__body">
+              <label className="composer__field">
+                <span className="sr-only">Write a post</span>
+                <textarea
+                  ref={composerInputRef}
+                  name="post"
+                  onBlur={() => setIsComposerFocused(false)}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onFocus={() => setIsComposerFocused(true)}
+                  placeholder={
+                    activeTab === 'races'
+                      ? 'Share a race or organizer update'
+                      : 'Share a race note, training update, or organizer signal'
+                  }
+                  rows={isComposerFocused || draft ? 4 : 2}
+                  value={draft}
+                />
+              </label>
+              <div className="composer__footer">
+                <p>
+                  {activeTab === 'races'
+                    ? 'Posting to Races & Orgs'
+                    : 'Posting to For You'}
+                </p>
+                <button
+                  className="button button--primary"
+                  disabled={!draft.trim()}
+                  type="submit"
+                >
+                  Post
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <section aria-live="polite" className="feed-stream">
+            {isLoading ? (
+              <FeedLoadingState />
+            ) : visiblePosts.length > 0 ? (
+              visiblePosts.map((post) => (
+                <article className="feed-post" key={post.id}>
+                  <div className="feed-post__meta">
+                    <div>
+                      <p className="feed-post__author">
+                        {post.author}
+                        <span>{post.role}</span>
+                      </p>
+                      <p className="feed-post__time">
+                        {post.tone} · {post.time}
+                      </p>
+                    </div>
+                    <button
+                      className="feed-post__hide"
+                      onClick={() => handleHidePost(post.id)}
+                      type="button"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <h2>{post.headline}</h2>
+                  <p>{post.body}</p>
+                  <div className="feed-post__metrics" aria-label="Post activity">
+                    <span>{post.metrics.replies} replies</span>
+                    <span>{post.metrics.boosts} boosts</span>
+                    <span>{post.metrics.saves} saves</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <FeedEmptyState
+                activeTab={activeTab}
+                onResetFeed={handleResetFeed}
+                onStartRaceDraft={handleStartRaceDraft}
+                sessionDisplayName={sessionDisplayName}
+              />
+            )}
+          </section>
+        </section>
+
+        <aside className="feed-rail" aria-label="Race utilities and trends">
+          <section className="feed-rail__panel">
+            <div className="feed-rail__header">
+              <p className="feed-label">Utility rail</p>
+              <h2>Operate from the right.</h2>
+            </div>
+            <div className="feed-utility-list">
+              {utilityLinks.map((item) => (
+                <article className="feed-utility-item" key={item.label}>
+                  <span>{item.label}</span>
+                  <small>{item.detail}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="feed-rail__panel">
+            <div className="feed-rail__header">
+              <p className="feed-label">Trending races</p>
+              <h2>Join what is gaining traction.</h2>
+            </div>
+            <div className="trending-list">
+              {trendingRaces.map((race) => (
+                <article className="trending-item" key={race.name}>
+                  <p>{race.name}</p>
+                  <span>{race.date}</span>
+                  <small>{race.detail}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+function FeedLoadingState() {
+  return (
+    <div className="feed-loading" aria-label="Loading feed">
+      {[0, 1, 2].map((item) => (
+        <article className="feed-post feed-post--skeleton" key={item}>
+          <div className="feed-skeleton feed-skeleton--meta" />
+          <div className="feed-skeleton feed-skeleton--headline" />
+          <div className="feed-skeleton feed-skeleton--body" />
+          <div className="feed-skeleton feed-skeleton--body feed-skeleton--body-short" />
+          <div className="feed-skeleton feed-skeleton--metrics" />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function FeedEmptyState({
+  activeTab,
+  onResetFeed,
+  onStartRaceDraft,
+  sessionDisplayName,
+}) {
+  return (
+    <article className="feed-empty">
+      <p className="feed-label">Feed cleared</p>
+      <h2>
+        {activeTab === 'races'
+          ? 'No race or organizer posts are visible right now.'
+          : 'Your feed is quiet for the moment.'}
+      </h2>
+      <p>
+        {sessionDisplayName}, this state is ready for the future `/feed` response. For now,
+        you can repopulate the mocked stream or post the first update from the composer.
+      </p>
+      <div className="feed-empty__actions">
+        <button className="button button--primary" onClick={onResetFeed} type="button">
+          Restore sample feed
+        </button>
+        <button className="button button--ghost" onClick={onStartRaceDraft} type="button">
+          Create race
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -246,10 +791,10 @@ function MarketingPage({ session = null }) {
 
               <aside className="hero__panel">
                 <p className="hero__lede">
-                  RunHop gives organizers a credible place to present races,
-                  sell registrations, and release updates while giving
-                  committed athletes one disciplined platform to discover events
-                  and move with a real community.
+                  RunHop gives organizers a credible place to present races, sell
+                  registrations, and release updates while giving committed athletes
+                  one disciplined platform to discover events and move with a real
+                  community.
                 </p>
                 <div className="hero__actions">
                   <a className="button button--primary" href="#races">
@@ -280,9 +825,9 @@ function MarketingPage({ session = null }) {
             <p className="eyebrow eyebrow--dark">Featured races</p>
             <h2>Upcoming events that look as serious as the people signing up.</h2>
             <p>
-              The first marketing surface should prove one thing fast: RunHop is
-              where races can be presented with authority, clarity, and enough
-              editorial weight to earn trust.
+              The first marketing surface should prove one thing fast: RunHop is where
+              races can be presented with authority, clarity, and enough editorial
+              weight to earn trust.
             </p>
           </div>
 
@@ -310,16 +855,13 @@ function MarketingPage({ session = null }) {
               <p className="eyebrow">Social running groups</p>
               <h2>A stronger community without the tone of a playful fitness app.</h2>
               <p>
-                Social features still need discipline. The right tone is not
-                casual noise, it is structure, rhythm, and people finding the
-                right crew to run with.
+                Social features still need discipline. The right tone is not casual
+                noise, it is structure, rhythm, and people finding the right crew to
+                run with.
               </p>
             </div>
             <div className="community-grid__visual">
-              <img
-                src={imageSources.groupA}
-                alt="A running community on a boardwalk"
-              />
+              <img src={imageSources.groupA} alt="A running community on a boardwalk" />
               <img
                 src={imageSources.groupB}
                 alt="Runners grouped together after a training session"
@@ -360,17 +902,26 @@ function MarketingPage({ session = null }) {
               <article>
                 <span>01</span>
                 <h3>Event-led selling</h3>
-                <p>Registration, merch, and logistics stay under the same credible surface.</p>
+                <p>
+                  Registration, merch, and logistics stay under the same credible
+                  surface.
+                </p>
               </article>
               <article>
                 <span>02</span>
                 <h3>Trust by design</h3>
-                <p>Strong hierarchy, clean copy, and disciplined emphasis where buyers need it most.</p>
+                <p>
+                  Strong hierarchy, clean copy, and disciplined emphasis where buyers
+                  need it most.
+                </p>
               </article>
               <article>
                 <span>03</span>
                 <h3>Community carryover</h3>
-                <p>Events do not disappear after checkout, they keep a social and update layer attached.</p>
+                <p>
+                  Events do not disappear after checkout, they keep a social and
+                  update layer attached.
+                </p>
               </article>
             </div>
           </div>
@@ -407,6 +958,7 @@ function AuthPage({
   altLinkLabel,
   altLinkTo,
   altLinkAction,
+  onSessionChange,
 }) {
   const navigate = useNavigate();
   const [formState, setFormState] = useState({
@@ -451,7 +1003,7 @@ function AuthPage({
 
       const session = mode === 'register' ? await register(payload) : await login(payload);
 
-      saveSession(session);
+      await onSessionChange(session);
       navigate('/', { replace: true });
     } catch (error) {
       setStatus({
@@ -473,16 +1025,16 @@ function AuthPage({
           </div>
           <div className="auth-panel__quote">
             <span>RunHop standard</span>
-            <p>
-              Serious race participation deserves a serious product surface.
-            </p>
+            <p>Serious race participation deserves a serious product surface.</p>
           </div>
         </section>
 
         <section className="auth-card">
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="auth-form__intro">
-              <p className="auth-form__eyebrow">{mode === 'register' ? 'New account' : 'Member access'}</p>
+              <p className="auth-form__eyebrow">
+                {mode === 'register' ? 'New account' : 'Member access'}
+              </p>
               <h2>{buttonLabel}</h2>
             </div>
 
@@ -490,12 +1042,12 @@ function AuthPage({
               <label>
                 <span>Full name</span>
                 <input
-                  name="displayName"
-                  type="text"
-                  placeholder="Your name"
-                  value={formState.displayName}
-                  onChange={handleChange}
                   autoComplete="name"
+                  name="displayName"
+                  onChange={handleChange}
+                  placeholder="Your name"
+                  type="text"
+                  value={formState.displayName}
                 />
               </label>
             ) : null}
@@ -503,32 +1055,39 @@ function AuthPage({
             <label>
               <span>Email address</span>
               <input
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={formState.email}
-                onChange={handleChange}
                 autoComplete="email"
+                name="email"
+                onChange={handleChange}
+                placeholder="name@example.com"
+                type="email"
+                value={formState.email}
               />
             </label>
 
             <label>
               <span>Password</span>
               <input
+                autoComplete={
+                  mode === 'register' ? 'new-password' : 'current-password'
+                }
                 name="password"
-                type="password"
-                placeholder="Enter your password"
-                value={formState.password}
                 onChange={handleChange}
-                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                placeholder="Enter password"
+                type="password"
+                value={formState.password}
               />
             </label>
 
-            {status.error ? <p className="auth-form__error">{status.error}</p> : null}
+            {status.error ? (
+              <p className="auth-form__error" role="alert">
+                {status.error}
+              </p>
+            ) : null}
 
-            <button className="button button--primary auth-form__submit" type="submit" disabled={status.submitting}>
+            <button className="button button--primary auth-form__submit" type="submit">
               {status.submitting ? 'Working...' : buttonLabel}
             </button>
+
             <p className="auth-form__hint">
               {altLinkLabel} <Link to={altLinkTo}>{altLinkAction}</Link>
             </p>
