@@ -71,7 +71,7 @@ async function parseJson(response) {
   }
 }
 
-async function request(path, options = {}) {
+export async function apiRequest(path, options = {}) {
   const { method = 'GET', payload, token } = options;
   const headers = {};
 
@@ -101,21 +101,21 @@ async function request(path, options = {}) {
 }
 
 export function login(payload) {
-  return request('/auth/login', {
+  return apiRequest('/auth/login', {
     method: 'POST',
     payload,
   });
 }
 
 export function register(payload) {
-  return request('/auth/register', {
+  return apiRequest('/auth/register', {
     method: 'POST',
     payload,
   });
 }
 
 export async function getCurrentUser(accessToken) {
-  const data = await request('/users/me', {
+  const data = await apiRequest('/users/me', {
     method: 'GET',
     token: accessToken,
   });
